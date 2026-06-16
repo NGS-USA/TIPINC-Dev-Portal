@@ -21,8 +21,18 @@ const CATEGORIES = [
 
 const PRIORITIES = ['Low', 'Medium', 'High']
 
-export default function RequestForm({ theme = {}, onSubmit }) {
+export default function RequestForm({ theme = {}, context = {}, onSubmit }) {
   const t = { ...defaultTheme, ...theme }
+
+  // Context is passed in by the embedding app — never shown to the user
+  const {
+    appId,
+    clientId,
+    locationId,
+    userId,
+    appName,
+    clientName
+  } = context
 
   const [form, setForm] = useState({
     category: '',
@@ -33,6 +43,7 @@ export default function RequestForm({ theme = {}, onSubmit }) {
 
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [contextError, setContextError] = useState(false)
 
   function validate() {
     const newErrors = {}
@@ -49,12 +60,30 @@ export default function RequestForm({ theme = {}, onSubmit }) {
 
   function handleSubmit(e) {
     e.preventDefault()
+
+    // Check required context is present before allowing submission
+    if (!appId || !clientId) {
+      setContextError(true)
+      return
+    }
+
     const validationErrors = validate()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
     }
-    if (onSubmit) onSubmit(form)
+
+    // Build the full payload — form fields + auto-attached context
+    const payload = {
+      ...form,
+      app_id: appId,
+      client_id: clientId,
+      location_id: locationId || null,
+      user_id: userId || null,
+      submitted_at: new Date().toISOString()
+    }
+
+    if (onSubmit) onSubmit(payload)
     setSubmitted(true)
   }
 
@@ -62,6 +91,7 @@ export default function RequestForm({ theme = {}, onSubmit }) {
     setForm({ category: '', priority: 'Medium', title: '', description: '' })
     setErrors({})
     setSubmitted(false)
+    setContextError(false)
   }
 
   const styles = {
@@ -96,7 +126,7 @@ export default function RequestForm({ theme = {}, onSubmit }) {
       fontFamily: t.fontFamily
     },
     inputError: {
-      border: `1px solid #ef4444`
+      border: '1px solid #ef4444'
     },
     errorText: {
       fontSize: '12px',
@@ -132,7 +162,38 @@ export default function RequestForm({ theme = {}, onSubmit }) {
       alignItems: 'center',
       justifyContent: 'center',
       margin: '0 auto 16px'
+    },
+    contextBadge: {
+      display: 'inline-block',
+      fontSize: '11px',
+      fontWeight: '600',
+      padding: '3px 10px',
+      borderRadius: '99px',
+      backgroundColor: `${t.primaryColor}15`,
+      color: t.primaryColor,
+      marginRight: '6px',
+      marginBottom: '16px'
     }
+  }
+
+  // If context is missing, show a config error (only visible to devs during setup)
+  if (contextError) {
+    return (
+      <div style={styles.wrapper}>
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <p style={{ color: '#ef4444', fontWeight: '600', marginBottom: '8px' }}>
+            Configuration Error
+          </p>
+          <p style={styles.muted}>
+            This form is missing required context (appId or clientId).
+            Please check the widget configuration.
+          </p>
+          <button onClick={handleReset} style={{ ...styles.button, backgroundColor: '#ef4444', marginTop: '20px' }}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (submitted) {
@@ -157,7 +218,13 @@ export default function RequestForm({ theme = {}, onSubmit }) {
   return (
     <div style={styles.wrapper}>
       <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Submit a Request</h2>
-      <p style={{ ...styles.muted, marginBottom: '24px' }}>Report a bug or request a new feature</p>
+      <p style={{ ...styles.muted, marginBottom: '16px' }}>Report a bug or request a new feature</p>
+
+      {/* Auto-attached context badges — visible so user knows what app they're submitting for */}
+      <div style={{ marginBottom: '20px' }}>
+        {appName && <span style={styles.contextBadge}>{appName}</span>}
+        {clientName && <span style={styles.contextBadge}>{clientName}</span>}
+      </div>
 
       <form onSubmit={handleSubmit} noValidate>
 
