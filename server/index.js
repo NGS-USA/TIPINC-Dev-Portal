@@ -4,6 +4,11 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import dotenv from 'dotenv'
 
+import appsRouter from './routes/apps.js'
+import clientsRouter from './routes/clients.js'
+import requestsRouter from './routes/requests.js'
+import changelogsRouter from './routes/changelogs.js'
+
 dotenv.config()
 
 const app = express()
@@ -15,15 +20,29 @@ app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }))
 app.use(morgan('dev'))
 app.use(express.json())
 
-// Health check route
+// Force HTTPS in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect('https://' + req.headers.host + req.url)
+  }
+  next()
+})
+
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'TIPINC Dev Portal API is running',
-    version: 'v0.0.01',
+    version: 'v0.0.03',
     environment: process.env.NODE_ENV || 'development'
   })
 })
+
+// Routes
+app.use('/api/apps', appsRouter)
+app.use('/api/clients', clientsRouter)
+app.use('/api/requests', requestsRouter)
+app.use('/api/changelogs', changelogsRouter)
 
 // 404 catch-all
 app.use((req, res) => {
