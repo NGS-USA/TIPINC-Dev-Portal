@@ -5,12 +5,13 @@ import {
   createRequest,
   updateRequestStatus
 } from '../controllers/requests.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = express.Router()
 
-router.get('/', getAllRequests)
-router.get('/:id', getRequestById)
-router.post('/', createRequest)
-router.patch('/:id/status', updateRequestStatus)
+router.get('/', requireAuth, getAllRequests)
+router.get('/:id', requireAuth, getRequestById)
+router.post('/', requireAuth, createRequest)
+router.patch('/:id/status', requireAuth, updateRequestStatus)
 
 export default router
