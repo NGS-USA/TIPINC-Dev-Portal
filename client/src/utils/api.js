@@ -22,3 +22,9 @@ export async function getRequests(filters = {}) {
   if (!response.ok) throw new Error('Failed to fetch requests')
   return response.json()
 }
+
+export async function getRequestsByClient(clientId) {
+  const response = await fetch(`${BASE_URL}/api/requests?client_id=${clientId}`)
+  if (!response.ok) throw new Error('Failed to fetch requests')
+  return response.json()
+}
