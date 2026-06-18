@@ -4,6 +4,7 @@ import { MsalProvider } from '@azure/msal-react'
 import { msalConfig } from './utils/authConfig'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import FormPreview from './pages/FormPreview'
 
 const msalInstance = new PublicClientApplication(msalConfig)
 
@@ -36,6 +37,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/form-preview" element={<FormPreview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
