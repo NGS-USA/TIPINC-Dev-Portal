@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import KanbanColumn from '../components/KanbanColumn'
 import { getApps, getRequests } from '../utils/api'
+import RequestCard from '../components/RequestCard'
+import RequestModal from '../components/RequestModal'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 
@@ -11,6 +13,7 @@ export default function KanbanBoard() {
     sessionStorage.getItem('selectedApp') || 'all'
   )
   const [loading, setLoading] = useState(true)
+  const [selectedRequest, setSelectedRequest] = useState(null)
 
   useEffect(() => {
     fetchApps()
@@ -157,9 +160,23 @@ export default function KanbanBoard() {
               key={column}
               title={column}
               cards={getCardsByStatus(column)}
-            />
+            >
+              {getCardsByStatus(column).map(request => (
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  onClick={setSelectedRequest}
+                />
+              ))}
+            </KanbanColumn>
           ))}
         </div>
+
+        {/* Request Detail Modal */}
+        <RequestModal
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+        />
       </div>
     </div>
   )
