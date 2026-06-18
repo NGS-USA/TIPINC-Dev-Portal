@@ -88,7 +88,7 @@ export default function KanbanBoard() {
             borderRadius: '99px',
             fontWeight: '600'
           }}>
-            v0.2.02
+            v0.2.04
           </span>
         </div>
 
@@ -160,15 +160,14 @@ export default function KanbanBoard() {
               key={column}
               title={column}
               cards={getCardsByStatus(column)}
-            >
-              {getCardsByStatus(column).map(request => (
+              renderCard={(request) => (
                 <RequestCard
                   key={request.id}
                   request={request}
                   onClick={setSelectedRequest}
                 />
-              ))}
-            </KanbanColumn>
+              )}
+            />
           ))}
         </div>
 
