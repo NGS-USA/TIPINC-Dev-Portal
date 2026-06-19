@@ -9,6 +9,7 @@ import clientsRouter from './routes/clients.js'
 import requestsRouter from './routes/requests.js'
 import changelogsRouter from './routes/changelogs.js'
 import rolesRouter from './routes/roles.js'
+import appAssignmentsRouter from './routes/appAssignments.js'
 
 dotenv.config()
 
@@ -45,6 +46,7 @@ app.use('/api/clients', clientsRouter)
 app.use('/api/requests', requestsRouter)
 app.use('/api/changelogs', changelogsRouter)
 app.use('/api/roles', rolesRouter)
+app.use('/api/app-assignments', appAssignmentsRouter)
 
 // 404 catch-all
 app.use((req, res) => {

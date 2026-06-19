@@ -3,20 +3,44 @@ import pool from '../utils/db.js'
 export async function getAllRequests(req, res) {
   try {
     const { app_id, status, category } = req.query
-    let query = 'SELECT * FROM requests WHERE 1=1'
-    const params = []
+    let query
+    let params = []
 
-    if (app_id) {
-      params.push(app_id)
-      query += ` AND app_id = $${params.length}`
-    }
-    if (status) {
-      params.push(status)
-      query += ` AND status = $${params.length}`
-    }
-    if (category) {
-      params.push(category)
-      query += ` AND category = $${params.length}`
+    if (req.user) {
+      // Only return requests for apps the user is assigned to
+      query = `SELECT r.* FROM requests r
+               INNER JOIN app_assignments aa ON r.app_id = aa.app_id
+               WHERE aa.user_id = $1`
+      params.push(req.user.id)
+
+      if (app_id) {
+        params.push(app_id)
+        query += ` AND r.app_id = $${params.length}`
+      }
+      if (status) {
+        params.push(status)
+        query += ` AND r.status = $${params.length}`
+      }
+      if (category) {
+        params.push(category)
+        query += ` AND r.category = $${params.length}`
+      }
+    } else {
+      // Dev mode — return all requests
+      query = 'SELECT * FROM requests WHERE 1=1'
+
+      if (app_id) {
+        params.push(app_id)
+        query += ` AND app_id = $${params.length}`
+      }
+      if (status) {
+        params.push(status)
+        query += ` AND status = $${params.length}`
+      }
+      if (category) {
+        params.push(category)
+        query += ` AND category = $${params.length}`
+      }
     }
 
     query += ' ORDER BY submitted_at DESC'
