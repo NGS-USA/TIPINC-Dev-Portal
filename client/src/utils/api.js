@@ -68,3 +68,9 @@ export async function deleteRequest(requestId) {
   if (!response.ok) throw new Error('Failed to delete request')
   return response.json()
 }
+
+export async function getChangelogsByApp(appId) {
+  const response = await fetch(`${BASE_URL}/api/deployments/changelogs?app_id=${appId}`)
+  if (!response.ok) throw new Error('Failed to fetch changelogs')
+  return response.json()
+}
