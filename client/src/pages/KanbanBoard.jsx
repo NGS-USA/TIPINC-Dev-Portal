@@ -7,6 +7,7 @@ import RequestModal from '../components/RequestModal'
 import ContextMenu from '../components/ContextMenu'
 import Settings from './Settings'
 import DeploymentModal from '../components/DeploymentModal'
+import VersionHistory from './VersionHistory'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 const CATEGORIES = ['All', 'New Feature', 'Bug / Fix', 'UI Update', 'Stats / Reporting', 'Workflow Change']
@@ -146,6 +147,8 @@ export default function KanbanBoard() {
     <Layout activePage={activePage} onNavigate={setActivePage}>
       {activePage === 'settings' ? (
         <Settings />
+      ) : activePage === 'versions' ? (
+        <VersionHistory selectedApp={selectedApp !== 'all' ? selectedApp : null} />
       ) : (
         <>
           {/* Board Header */}
