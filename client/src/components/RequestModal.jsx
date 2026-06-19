@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { assignRequest, getDevelopers } from '../utils/api'
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
 const PRIORITY_COLORS = {
-  High: { color: '#dc2626', bg: '#fef2f2' },
+  High: { color: '#ef4444', bg: '#fef2f2' },
   Medium: { color: '#f59e0b', bg: '#fffbeb' },
-  Low: { color: '#16a34a', bg: '#f0fdf4' }
+  Low: { color: '#22c55e', bg: '#f0fdf4' }
 }
 
 const CATEGORY_ICONS = {
@@ -23,6 +25,14 @@ export default function RequestModal({ request, onClose, onUpdate }) {
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState(null)
   const [assigned, setAssigned] = useState(request.assigned_dev_id || null)
+
+  // Approval state
+  const [showRejectForm, setShowRejectForm] = useState(false)
+  const [rejectionNote, setRejectionNote] = useState('')
+  const [approving, setApproving] = useState(false)
+  const [approvalError, setApprovalError] = useState(null)
+
+  const isPendingApproval = request.status === 'Pending Approval'
 
   useEffect(() => {
     fetchDevelopers()
@@ -48,6 +58,50 @@ export default function RequestModal({ request, onClose, onUpdate }) {
       setAssignError('Failed to assign developer')
     } finally {
       setAssigning(false)
+    }
+  }
+
+  async function handleApprove() {
+    try {
+      setApproving(true)
+      setApprovalError(null)
+      const res = await fetch(`${API}/api/requests/${request.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Deployed' })
+      })
+      if (!res.ok) throw new Error('Failed to approve')
+      const updated = await res.json()
+      if (onUpdate) onUpdate(updated)
+      onClose()
+    } catch (err) {
+      setApprovalError('Failed to approve request')
+    } finally {
+      setApproving(false)
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectionNote.trim()) {
+      setApprovalError('A rejection note is required')
+      return
+    }
+    try {
+      setApproving(true)
+      setApprovalError(null)
+      const res = await fetch(`${API}/api/requests/${request.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'In Progress', rejection_note: rejectionNote })
+      })
+      if (!res.ok) throw new Error('Failed to reject')
+      const updated = await res.json()
+      if (onUpdate) onUpdate(updated)
+      onClose()
+    } catch (err) {
+      setApprovalError('Failed to reject request')
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -89,7 +143,7 @@ export default function RequestModal({ request, onClose, onUpdate }) {
         maxWidth: '500px',
         zIndex: 101,
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        maxHeight: '80vh',
+        maxHeight: '85vh',
         overflowY: 'auto'
       }}>
         {/* Header */}
@@ -109,6 +163,19 @@ export default function RequestModal({ request, onClose, onUpdate }) {
               }}>
                 {request.priority}
               </span>
+              {isPendingApproval && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '2px 8px',
+                  borderRadius: '99px',
+                  backgroundColor: '#fffbeb',
+                  color: '#f59e0b',
+                  border: '1px solid #fde68a'
+                }}>
+                  Pending Approval
+                </span>
+              )}
             </div>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>
               {request.title}
@@ -161,6 +228,132 @@ export default function RequestModal({ request, onClose, onUpdate }) {
           </div>
         )}
 
+        {/* Senior Approval Section */}
+        {isPendingApproval && (
+          <div style={{
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '10px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Senior Developer Review
+            </p>
+
+            {!showRejectForm ? (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleApprove}
+                  disabled={approving}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    backgroundColor: '#16a34a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: approving ? 'default' : 'pointer',
+                    opacity: approving ? 0.7 : 1,
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                  }}
+                >
+                  ✓ Approve & Deploy
+                </button>
+                <button
+                  onClick={() => setShowRejectForm(true)}
+                  disabled={approving}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    backgroundColor: 'transparent',
+                    color: '#dc2626',
+                    border: '1.5px solid #fecaca',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: approving ? 'default' : 'pointer',
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                  }}
+                >
+                  ✕ Reject
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px', fontWeight: '600' }}>
+                  Rejection note (required)
+                </p>
+                <textarea
+                  value={rejectionNote}
+                  onChange={e => setRejectionNote(e.target.value)}
+                  placeholder="Explain why this is being rejected..."
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    backgroundColor: '#ffffff',
+                    border: '1.5px solid #fde68a',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#111827',
+                    resize: 'vertical',
+                    outline: 'none',
+                    marginBottom: '10px',
+                    boxSizing: 'border-box',
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={handleReject}
+                    disabled={approving}
+                    style={{
+                      flex: 1,
+                      padding: '9px',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: approving ? 'default' : 'pointer',
+                      opacity: approving ? 0.7 : 1,
+                      fontFamily: 'Inter, system-ui, sans-serif'
+                    }}
+                  >
+                    Confirm Rejection
+                  </button>
+                  <button
+                    onClick={() => { setShowRejectForm(false); setRejectionNote('') }}
+                    style={{
+                      padding: '9px 16px',
+                      backgroundColor: 'transparent',
+                      color: '#6b7280',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontFamily: 'Inter, system-ui, sans-serif'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {approvalError && (
+              <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '10px' }}>
+                {approvalError}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Dev Assignment */}
         <div style={{
           backgroundColor: '#f9fafb',
@@ -180,7 +373,7 @@ export default function RequestModal({ request, onClose, onUpdate }) {
                   width: '32px',
                   height: '32px',
                   borderRadius: '50%',
-                  backgroundColor: '#6366f1',
+                  backgroundColor: assignedDev.role === 'SeniorDeveloper' ? '#f59e0b' : '#6366f1',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

@@ -7,7 +7,6 @@ export async function getAllRequests(req, res) {
     let params = []
 
     if (req.user) {
-      // Only return requests for apps the user is assigned to
       query = `SELECT r.* FROM requests r
                INNER JOIN app_assignments aa ON r.app_id = aa.app_id
                WHERE aa.user_id = $1`
@@ -26,7 +25,6 @@ export async function getAllRequests(req, res) {
         query += ` AND r.category = $${params.length}`
       }
     } else {
-      // Dev mode — return all requests
       query = 'SELECT * FROM requests WHERE 1=1'
 
       if (app_id) {
@@ -47,6 +45,7 @@ export async function getAllRequests(req, res) {
     const result = await pool.query(query, params)
     res.json(result.rows)
   } catch (err) {
+    console.error('GET REQUESTS ERROR:', err.message)
     res.status(500).json({ error: 'Failed to fetch requests', detail: err.message })
   }
 }
@@ -73,7 +72,6 @@ export async function createRequest(req, res) {
     const locId = location_id && location_id !== 'null' ? location_id : null
     const usrId = user_id && user_id !== 'null' ? user_id : null
 
-    // Write the request to the database
     const result = await pool.query(
       `INSERT INTO requests (app_id, client_id, location_id, user_id, category, priority, title, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -82,7 +80,6 @@ export async function createRequest(req, res) {
 
     const newRequest = result.rows[0]
 
-    // Write to audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, actor_email, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -116,7 +113,8 @@ export async function updateRequestStatus(req, res) {
 
     const result = await pool.query(
       `UPDATE requests SET status = $1, assigned_dev_id = COALESCE($2, assigned_dev_id),
-       rejection_note = COALESCE($3, rejection_note), updated_at = now()
+       rejection_note = CASE WHEN $1 = 'Deployed' THEN NULL ELSE COALESCE($3, rejection_note) END,
+       updated_at = now()
        WHERE id = $4 RETURNING *`,
       [status, assigned_dev_id, rejection_note, id]
     )
@@ -125,7 +123,6 @@ export async function updateRequestStatus(req, res) {
 
     const updated = result.rows[0]
 
-    // Write status change to audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -164,7 +161,6 @@ export async function assignRequest(req, res) {
       return res.status(404).json({ error: 'Request not found' })
     }
 
-    // Log to audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
        VALUES ($1, $2, $3, $4, $5)`,
