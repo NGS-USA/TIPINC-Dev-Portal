@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import KanbanColumn from '../components/KanbanColumn'
+import { getApps, getRequests, getDevelopers, assignRequest, moveRequest, deleteRequest } from '../utils/api'
 import RequestCard from '../components/RequestCard'
 import RequestModal from '../components/RequestModal'
 import ContextMenu from '../components/ContextMenu'
-import { getApps, getRequests, getDevelopers, assignRequest, moveRequest, deleteRequest } from '../utils/api'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 
@@ -61,6 +61,11 @@ export default function KanbanBoard() {
     }
   }
 
+  function handleAppSelect(appId) {
+    setSelectedApp(appId)
+    sessionStorage.setItem('selectedApp', appId)
+  }
+
   function handleContextMenu(e, request) {
     setContextMenu({ x: e.clientX, y: e.clientY, request })
   }
@@ -79,7 +84,7 @@ export default function KanbanBoard() {
       const updated = await moveRequest(requestId, status)
       setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
     } catch (err) {
-      console.error('Failed to move:', err)
+      console.error('Failed to move request:', err)
     }
   }
 
@@ -93,9 +98,15 @@ export default function KanbanBoard() {
     }
   }
 
-  function handleAppSelect(appId) {
-    setSelectedApp(appId)
-    sessionStorage.setItem('selectedApp', appId)
+  async function handleDrop(requestId, status) {
+    const request = requests.find(r => r.id === requestId)
+    if (!request || request.status === status) return
+    try {
+      const updated = await moveRequest(requestId, status)
+      setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
+    } catch (err) {
+      console.error('Failed to move request:', err)
+    }
   }
 
   function getCardsByStatus(status) {
@@ -182,6 +193,7 @@ export default function KanbanBoard() {
               key={column}
               title={column}
               cards={getCardsByStatus(column)}
+              onDrop={handleDrop}
               renderCard={(request) => (
                 <RequestCard
                   key={request.id}
@@ -204,21 +216,20 @@ export default function KanbanBoard() {
             setSelectedRequest(updated)
           }}
         />
+
+        {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            request={contextMenu.request}
+            developers={developers}
+            onClose={() => setContextMenu(null)}
+            onAssign={handleAssign}
+            onMove={handleMove}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
-
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          request={contextMenu.request}
-          developers={developers}
-          onClose={() => setContextMenu(null)}
-          onAssign={handleAssign}
-          onMove={handleMove}
-          onDelete={handleDelete}
-        />
-      )}
-
     </Layout>
   )
 }

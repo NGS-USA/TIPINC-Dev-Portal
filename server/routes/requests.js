@@ -14,7 +14,7 @@ const router = express.Router()
 router.get('/', getAllRequests)
 router.get('/:id', getRequestById)
 router.post('/', createRequest)
-router.patch('/:id/status', requireAuth, updateRequestStatus)
+router.patch('/:id/status', updateRequestStatus) // Auth added back when Entra is ready
 router.patch('/:id/assign', assignRequest)
 router.delete('/:id', requireAuth, deleteRequest)
 

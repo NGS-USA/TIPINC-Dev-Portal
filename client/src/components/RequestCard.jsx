@@ -26,6 +26,14 @@ export default function RequestCard({ request, developers = [], apps = [], onCli
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('requestId', request.id)
+        e.currentTarget.style.opacity = '0.5'
+      }}
+      onDragEnd={(e) => {
+        e.currentTarget.style.opacity = '1'
+      }}
       onClick={() => onClick && onClick(request)}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -36,7 +44,7 @@ export default function RequestCard({ request, developers = [], apps = [], onCli
         border: '1px solid #e5e7eb',
         borderRadius: '10px',
         padding: '14px',
-        cursor: 'pointer',
+        cursor: 'grab',
         transition: 'box-shadow 0.15s, transform 0.1s',
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
       }}
@@ -144,7 +152,6 @@ export default function RequestCard({ request, developers = [], apps = [], onCli
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        {/* Assigned Dev or Unassigned */}
         {assignedDev ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{
@@ -185,8 +192,6 @@ export default function RequestCard({ request, developers = [], apps = [], onCli
             </span>
           </div>
         )}
-
-        {/* Date */}
         <span style={{ fontSize: '11px', color: '#9ca3af' }}>
           {formatDate(request.submitted_at)}
         </span>

@@ -66,7 +66,7 @@ function ToggleSwitch({ value, onChange, accent }) {
   )
 }
 
-export default function KanbanColumn({ title, cards = [], renderCard }) {
+export default function KanbanColumn({ title, cards = [], renderCard, onDrop }) {
   const colors = COLUMN_COLORS[title] || COLUMN_COLORS['Incoming']
   const isIncoming = title === 'Incoming'
 
@@ -100,7 +100,7 @@ export default function KanbanColumn({ title, cards = [], renderCard }) {
     return groups
   }
 
-  const showGrouped = isIncoming && sortBy === 'category'
+  const showGrouped = sortBy === 'category'
   const sortedCards = getSortedCards(cards)
   const groupedCards = showGrouped ? getGroupedCards(cards) : null
 
@@ -189,16 +189,33 @@ export default function KanbanColumn({ title, cards = [], renderCard }) {
       </div>
 
       {/* Cards Container */}
-      <div style={{
-        flex: 1,
-        padding: '12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        minHeight: '200px',
-        maxHeight: 'calc(100vh - 280px)',
-        overflowY: 'auto'
-      }}>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.currentTarget.style.backgroundColor = `${colors.accent}15`
+        }}
+        onDragLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent'
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.currentTarget.style.backgroundColor = 'transparent'
+          const requestId = e.dataTransfer.getData('requestId')
+          if (requestId && onDrop) onDrop(requestId, title)
+        }}
+        style={{
+          flex: 1,
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          minHeight: '200px',
+          maxHeight: 'calc(100vh - 280px)',
+          overflowY: 'auto',
+          transition: 'background-color 0.15s',
+          borderRadius: '0 0 12px 12px'
+        }}
+      >
         {cards.length === 0 ? (
           <div style={{
             flex: 1,
