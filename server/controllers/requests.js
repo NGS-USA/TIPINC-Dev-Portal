@@ -3,26 +3,49 @@ import pool from '../utils/db.js'
 export async function getAllRequests(req, res) {
   try {
     const { app_id, status, category } = req.query
-    let query = 'SELECT * FROM requests WHERE 1=1'
-    const params = []
+    let query
+    let params = []
 
-    if (app_id) {
-      params.push(app_id)
-      query += ` AND app_id = $${params.length}`
-    }
-    if (status) {
-      params.push(status)
-      query += ` AND status = $${params.length}`
-    }
-    if (category) {
-      params.push(category)
-      query += ` AND category = $${params.length}`
+    if (req.user) {
+      query = `SELECT r.* FROM requests r
+               INNER JOIN app_assignments aa ON r.app_id = aa.app_id
+               WHERE aa.user_id = $1`
+      params.push(req.user.id)
+
+      if (app_id) {
+        params.push(app_id)
+        query += ` AND r.app_id = $${params.length}`
+      }
+      if (status) {
+        params.push(status)
+        query += ` AND r.status = $${params.length}`
+      }
+      if (category) {
+        params.push(category)
+        query += ` AND r.category = $${params.length}`
+      }
+    } else {
+      query = 'SELECT * FROM requests WHERE 1=1'
+
+      if (app_id) {
+        params.push(app_id)
+        query += ` AND app_id = $${params.length}`
+      }
+      if (status) {
+        params.push(status)
+        query += ` AND status = $${params.length}`
+      }
+      if (category) {
+        params.push(category)
+        query += ` AND category = $${params.length}`
+      }
     }
 
     query += ' ORDER BY submitted_at DESC'
     const result = await pool.query(query, params)
     res.json(result.rows)
   } catch (err) {
+    console.error('GET REQUESTS ERROR:', err.message)
     res.status(500).json({ error: 'Failed to fetch requests', detail: err.message })
   }
 }
@@ -49,7 +72,6 @@ export async function createRequest(req, res) {
     const locId = location_id && location_id !== 'null' ? location_id : null
     const usrId = user_id && user_id !== 'null' ? user_id : null
 
-    // Write the request to the database
     const result = await pool.query(
       `INSERT INTO requests (app_id, client_id, location_id, user_id, category, priority, title, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -58,7 +80,6 @@ export async function createRequest(req, res) {
 
     const newRequest = result.rows[0]
 
-    // Write to audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, actor_email, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -92,7 +113,8 @@ export async function updateRequestStatus(req, res) {
 
     const result = await pool.query(
       `UPDATE requests SET status = $1, assigned_dev_id = COALESCE($2, assigned_dev_id),
-       rejection_note = COALESCE($3, rejection_note), updated_at = now()
+       rejection_note = CASE WHEN $1 = 'Deployed' THEN NULL ELSE COALESCE($3, rejection_note) END,
+       updated_at = now()
        WHERE id = $4 RETURNING *`,
       [status, assigned_dev_id, rejection_note, id]
     )
@@ -101,7 +123,6 @@ export async function updateRequestStatus(req, res) {
 
     const updated = result.rows[0]
 
-    // Write status change to audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -118,5 +139,68 @@ export async function updateRequestStatus(req, res) {
     res.json(updated)
   } catch (err) {
     res.status(500).json({ error: 'Failed to update request', detail: err.message })
+  }
+}
+
+export async function assignRequest(req, res) {
+  try {
+    const { id } = req.params
+    const { assigned_dev_id, assigned_dev_name } = req.body
+
+    if (!assigned_dev_id) {
+      return res.status(400).json({ error: 'assigned_dev_id is required' })
+    }
+
+    const result = await pool.query(
+      `UPDATE requests SET assigned_dev_id = $1, updated_at = now()
+       WHERE id = $2 RETURNING *`,
+      [assigned_dev_id, id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+
+    await pool.query(
+      `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        assigned_dev_id,
+        'REQUEST_ASSIGNED',
+        'request',
+        id,
+        JSON.stringify({ assigned_dev_id, assigned_dev_name })
+      ]
+    )
+
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('ASSIGN REQUEST ERROR:', err.message)
+    res.status(500).json({ error: 'Failed to assign request', detail: err.message })
+  }
+}
+
+export async function deleteRequest(req, res) {
+  try {
+    const { id } = req.params
+
+    const result = await pool.query(
+      'DELETE FROM requests WHERE id = $1 RETURNING *',
+      [id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+
+    await pool.query(
+      `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, $3, $4, $5)`,
+      ['system', 'REQUEST_DELETED', 'request', id, JSON.stringify({ id })]
+    )
+
+    res.json({ message: 'Request deleted' })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete request', detail: err.message })
   }
 }
