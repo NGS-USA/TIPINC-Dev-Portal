@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import NotificationBell from './NotificationBell'
 
 const NAV_ITEMS = [
   {
@@ -139,18 +140,18 @@ export default function Sidebar({ activePage, onNavigate }) {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Notification Bell + Version */}
       <div style={{
-        padding: '16px 20px',
-        borderTop: '1px solid #2d3148'
+        padding: '12px 20px',
+        borderTop: '1px solid #2d3148',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
-        <span style={{
-          fontSize: '11px',
-          color: '#3d4468',
-          fontWeight: '600'
-        }}>
-          v0.2.05
+        <span style={{ fontSize: '11px', color: '#3d4468', fontWeight: '600' }}>
+          v{__APP_VERSION__}
         </span>
+        <NotificationBell />
       </div>
     </div>
   )
