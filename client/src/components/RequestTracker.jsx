@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getRequestsByClient } from '../utils/api'
 
 const defaultTheme = {
@@ -13,36 +13,12 @@ const defaultTheme = {
 }
 
 const STATUS_CONFIG = {
-  'Incoming': {
-    label: 'Submitted',
-    color: '#6b7280',
-    bg: '#f3f4f6'
-  },
-  'In Review': {
-    label: 'Submitted',
-    color: '#6b7280',
-    bg: '#f3f4f6'
-  },
-  'In Progress': {
-    label: 'In Progress',
-    color: '#9333ea',
-    bg: '#faf5ff'
-  },
-  'Pending Approval': {
-    label: 'In Progress',
-    color: '#9333ea',
-    bg: '#faf5ff'
-  },
-  'Deployed': {
-    label: 'Deployed',
-    color: '#16a34a',
-    bg: '#f0fdf4'
-  },
-  'Rejected': {
-    label: 'Rejected',
-    color: '#dc2626',
-    bg: '#fef2f2'
-  }
+  'Incoming': { label: 'Submitted', color: '#6b7280', bg: '#f3f4f6' },
+  'In Review': { label: 'Submitted', color: '#6b7280', bg: '#f3f4f6' },
+  'In Progress': { label: 'In Progress', color: '#9333ea', bg: '#faf5ff' },
+  'Pending Approval': { label: 'In Progress', color: '#9333ea', bg: '#faf5ff' },
+  'Deployed': { label: 'Deployed', color: '#16a34a', bg: '#f0fdf4' },
+  'Rejected': { label: 'Rejected', color: '#dc2626', bg: '#fef2f2' }
 }
 
 const CATEGORY_ICONS = {
@@ -53,7 +29,7 @@ const CATEGORY_ICONS = {
   'Workflow Change': '⟳'
 }
 
-function StatusBadge({ status, theme }) {
+function StatusBadge({ status }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG['Incoming']
   return (
     <span style={{
@@ -63,16 +39,19 @@ function StatusBadge({ status, theme }) {
       borderRadius: '99px',
       backgroundColor: config.bg,
       color: config.color,
-      letterSpacing: '0.03em'
+      letterSpacing: '0.03em',
+      whiteSpace: 'nowrap'
     }}>
       {config.label}
     </span>
   )
 }
 
-function RequestCard({ request, theme, styles }) {
+function RequestCard({ request, theme, previousStatus }) {
   const t = theme
   const [expanded, setExpanded] = useState(false)
+  const statusChanged = previousStatus && previousStatus !== request.status
+  const isNewStatus = ['In Progress', 'Deployed'].includes(request.status) && statusChanged
 
   function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -85,8 +64,8 @@ function RequestCard({ request, theme, styles }) {
   return (
     <div
       style={{
-        backgroundColor: t.surfaceColor,
-        border: `1px solid ${t.borderColor}`,
+        backgroundColor: isNewStatus ? `${t.primaryColor}08` : t.surfaceColor,
+        border: `1px solid ${isNewStatus ? t.primaryColor : t.borderColor}`,
         borderRadius: '10px',
         padding: '16px',
         marginBottom: '10px',
@@ -101,6 +80,18 @@ function RequestCard({ request, theme, styles }) {
             <span style={{ fontSize: '13px', color: t.mutedTextColor }}>
               {CATEGORY_ICONS[request.category]} {request.category}
             </span>
+            {isNewStatus && (
+              <span style={{
+                fontSize: '10px',
+                fontWeight: '700',
+                color: t.primaryColor,
+                backgroundColor: `${t.primaryColor}15`,
+                padding: '1px 6px',
+                borderRadius: '99px'
+              }}>
+                Updated
+              </span>
+            )}
           </div>
           <p style={{
             fontSize: '14px',
@@ -114,7 +105,7 @@ function RequestCard({ request, theme, styles }) {
             {request.title}
           </p>
         </div>
-        <StatusBadge status={request.status} theme={t} />
+        <StatusBadge status={request.status} />
       </div>
 
       {expanded && (
@@ -159,22 +150,37 @@ export default function RequestTracker({ theme = {}, context = {} }) {
   const { clientId } = context
 
   const [requests, setRequests] = useState([])
+  const [previousRequests, setPreviousRequests] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('All')
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   const FILTERS = ['All', 'Submitted', 'In Progress', 'Deployed']
 
   useEffect(() => {
     if (!clientId) return
     fetchRequests()
+    const interval = setInterval(fetchRequests, 30000)
+    return () => clearInterval(interval)
   }, [clientId])
 
   async function fetchRequests() {
     try {
-      setLoading(true)
+      setError(null)
       const data = await getRequestsByClient(clientId)
+
+      // Store previous statuses before updating
+      setPreviousRequests(prev => {
+        const newPrev = {}
+        data.forEach(r => {
+          newPrev[r.id] = prev[r.id] || r.status
+        })
+        return newPrev
+      })
+
       setRequests(data)
+      setLastUpdated(new Date())
     } catch (err) {
       setError('Failed to load requests')
     } finally {
@@ -187,6 +193,11 @@ export default function RequestTracker({ theme = {}, context = {} }) {
     const config = STATUS_CONFIG[r.status]
     return config?.label === filter
   })
+
+  function formatLastUpdated(date) {
+    if (!date) return ''
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  }
 
   const styles = {
     wrapper: {
@@ -205,7 +216,7 @@ export default function RequestTracker({ theme = {}, context = {} }) {
   return (
     <div style={styles.wrapper}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Your Requests</h2>
           <p style={{ fontSize: '13px', color: t.mutedTextColor, margin: '2px 0 0' }}>
@@ -227,6 +238,13 @@ export default function RequestTracker({ theme = {}, context = {} }) {
           ↻ Refresh
         </button>
       </div>
+
+      {/* Last Updated */}
+      {lastUpdated && (
+        <p style={{ fontSize: '11px', color: t.mutedTextColor, marginBottom: '16px' }}>
+          Last updated at {formatLastUpdated(lastUpdated)} · auto-refreshes every 30s
+        </p>
+      )}
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -277,6 +295,7 @@ export default function RequestTracker({ theme = {}, context = {} }) {
           key={request.id}
           request={request}
           theme={t}
+          previousStatus={previousRequests[request.id]}
         />
       ))}
     </div>
