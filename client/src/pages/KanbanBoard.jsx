@@ -11,11 +11,13 @@ import VersionHistory from './VersionHistory'
 import AuditLog from './AuditLog'
 import Analytics from './Analytics'
 import NewRequestModal from '../components/NewRequestModal'
+import { useAuth } from '../context/AuthContext'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 const CATEGORIES = ['All', 'New Feature', 'Bug / Fix', 'UI Update', 'Stats / Reporting', 'Workflow Change']
 
 export default function KanbanBoard() {
+  const { isSeniorDev, portalToken } = useAuth()
   const [apps, setApps] = useState([])
   const [requests, setRequests] = useState([])
   const [developers, setDevelopers] = useState([])
@@ -44,7 +46,7 @@ export default function KanbanBoard() {
 
   async function fetchApps() {
     try {
-      const data = await getApps()
+      const data = await getApps(portalToken)
       setApps(data)
     } catch (err) {
       console.error('Failed to fetch apps:', err)
@@ -55,7 +57,7 @@ export default function KanbanBoard() {
     try {
       setLoading(true)
       const filters = selectedApp !== 'all' ? { app_id: selectedApp } : {}
-      const data = await getRequests(filters)
+      const data = await getRequests(filters, portalToken)
       setRequests(data)
     } catch (err) {
       console.error('Failed to fetch requests:', err)
@@ -381,8 +383,8 @@ export default function KanbanBoard() {
             padding: '28px',
             overflowX: 'auto'
           }}>
-            {/* Deploy Button */}
-            {pendingRequests.length > 0 && (
+           {/* Deploy Button — Senior Dev only */}
+            {isSeniorDev && pendingRequests.length > 0 && (
               <div style={{ marginBottom: '16px' }}>
                 <button
                   onClick={() => setShowDeployment(true)}

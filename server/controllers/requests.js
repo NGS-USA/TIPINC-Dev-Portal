@@ -3,15 +3,19 @@ import { createNotification } from './notifications.js'
 
 export async function getAllRequests(req, res) {
   try {
+    console.log('Portal user:', req.portalUser?.id, req.portalUser?.email)
+    console.log('Auth header:', req.headers.authorization ? 'present' : 'missing')
     const { app_id, status, category } = req.query
     let query
     let params = []
 
-    if (req.user) {
+    const authUserId = req.portalUser?.id || req.user?.id
+
+    if (authUserId) {
       query = `SELECT r.* FROM requests r
                INNER JOIN app_assignments aa ON r.app_id = aa.app_id
                WHERE aa.user_id = $1`
-      params.push(req.user.id)
+      params.push(authUserId)
 
       if (app_id) {
         params.push(app_id)
@@ -81,7 +85,6 @@ export async function createRequest(req, res) {
 
     const newRequest = result.rows[0]
 
-    // Audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, actor_email, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -96,7 +99,6 @@ export async function createRequest(req, res) {
       ]
     )
 
-    // Notify all devs assigned to this app
     const devResult = await pool.query(
       `SELECT dr.user_id FROM dev_roles dr
        INNER JOIN app_assignments aa ON dr.user_id = aa.user_id
@@ -142,7 +144,6 @@ export async function updateRequestStatus(req, res) {
 
     const updated = result.rows[0]
 
-    // Audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -156,7 +157,6 @@ export async function updateRequestStatus(req, res) {
       ]
     )
 
-    // Notify Senior Devs when card hits Pending Approval
     if (status === 'Pending Approval') {
       const seniorDevs = await pool.query(
         `SELECT user_id FROM dev_roles WHERE role = 'SeniorDeveloper'`
@@ -197,7 +197,6 @@ export async function assignRequest(req, res) {
       return res.status(404).json({ error: 'Request not found' })
     }
 
-    // Audit log
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -210,7 +209,6 @@ export async function assignRequest(req, res) {
       ]
     )
 
-    // Notify the assigned dev
     await createNotification(
       assigned_dev_id,
       'ASSIGNED',
@@ -223,6 +221,28 @@ export async function assignRequest(req, res) {
   } catch (err) {
     console.error('ASSIGN REQUEST ERROR:', err.message)
     res.status(500).json({ error: 'Failed to assign request', detail: err.message })
+  }
+}
+
+export async function unassignRequest(req, res) {
+  try {
+    const { id } = req.params
+    const result = await pool.query(
+      `UPDATE requests SET assigned_dev_id = NULL, updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [id]
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Request not found' })
+
+    await pool.query(
+      `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, $3, $4, $5)`,
+      ['system', 'REQUEST_UNASSIGNED', 'request', id, JSON.stringify({ id })]
+    )
+
+    res.json(result.rows[0])
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to unassign request', detail: err.message })
   }
 }
 
@@ -248,27 +268,5 @@ export async function deleteRequest(req, res) {
     res.json({ message: 'Request deleted' })
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete request', detail: err.message })
-  }
-}
-
-export async function unassignRequest(req, res) {
-  try {
-    const { id } = req.params
-    const result = await pool.query(
-      `UPDATE requests SET assigned_dev_id = NULL, updated_at = now()
-       WHERE id = $1 RETURNING *`,
-      [id]
-    )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Request not found' })
-
-    await pool.query(
-      `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
-       VALUES ($1, $2, $3, $4, $5)`,
-      ['system', 'REQUEST_UNASSIGNED', 'request', id, JSON.stringify({ id })]
-    )
-
-    res.json(result.rows[0])
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to unassign request', detail: err.message })
   }
 }
