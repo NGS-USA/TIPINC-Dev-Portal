@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import NotificationBell from './NotificationBell'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   {
@@ -60,6 +61,8 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ activePage, onNavigate }) {
+  const { logout } = useAuth()
+
   return (
     <div style={{
       width: '220px',
@@ -159,9 +162,27 @@ export default function Sidebar({ activePage, onNavigate }) {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <span style={{ fontSize: '11px', color: '#3d4468', fontWeight: '600' }}>
-          v{__APP_VERSION__}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#3d4468', fontWeight: '600' }}>
+            v{__APP_VERSION__}
+          </span>
+          <button
+            onClick={logout}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#6b7280',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: '600'
+            }}
+          >
+            Sign out
+          </button>
+        </div>
         <NotificationBell />
       </div>
     </div>

@@ -15,6 +15,7 @@ import auditLogRouter from './routes/auditLog.js'
 import notificationsRouter from './routes/notifications.js'
 import analyticsRouter from './routes/analytics.js'
 import notesRouter from './routes/notes.js'
+import authRouter from './routes/auth.js'
 
 dotenv.config()
 
@@ -57,6 +58,7 @@ app.use('/api/audit-log', auditLogRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/analytics', analyticsRouter)
 app.use('/api/notes', notesRouter)
+app.use('/api/auth', authRouter)
 
 // 404 catch-all
 app.use((req, res) => {

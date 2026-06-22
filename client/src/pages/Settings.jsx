@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getDevelopers, getApps } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -56,18 +57,242 @@ const BTN_DANGER = {
   fontFamily: 'Inter, system-ui, sans-serif'
 }
 
+function UserManagement({ authHeader }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'Developer' })
+  const [inviteResult, setInviteResult] = useState(null)
+  const [inviteError, setInviteError] = useState(null)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  async function fetchUsers() {
+    try {
+      const res = await fetch(`${API}/api/auth/users`, { headers: authHeader })
+      if (!res.ok) return
+      const data = await res.json()
+      setUsers(data)
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault()
+    setInviteError(null)
+    setInviteResult(null)
+    try {
+      const res = await fetch(`${API}/api/auth/users/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify(inviteForm)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setInviteResult(data)
+      setInviteForm({ email: '', name: '', role: 'Developer' })
+      fetchUsers()
+    } catch (err) {
+      setInviteError(err.message)
+    }
+  }
+
+  async function handleResetPassword(userId) {
+    if (!window.confirm("Reset this user's password?")) return
+    try {
+      const res = await fetch(`${API}/api/auth/users/${userId}/reset-password`, {
+        method: 'PATCH',
+        headers: authHeader
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      alert(`Temporary password: ${data.tempPassword}\n\nShare this with the user — they will be required to change it on next login.`)
+    } catch (err) {
+      alert('Failed to reset password: ' + err.message)
+    }
+  }
+
+  async function handleResetMfa(userId) {
+    if (!window.confirm('Reset MFA for this user?')) return
+    try {
+      await fetch(`${API}/api/auth/users/${userId}/reset-mfa`, {
+        method: 'PATCH',
+        headers: authHeader
+      })
+      fetchUsers()
+    } catch (err) {
+      console.error('Failed to reset MFA:', err)
+    }
+  }
+
+  async function handleDeactivate(userId) {
+    if (!window.confirm('Deactivate this user? They will no longer be able to log in.')) return
+    try {
+      await fetch(`${API}/api/auth/users/${userId}/deactivate`, {
+        method: 'PATCH',
+        headers: authHeader
+      })
+      fetchUsers()
+    } catch (err) {
+      console.error('Failed to deactivate:', err)
+    }
+  }
+
+  return (
+    <div>
+      {loading ? (
+        <p style={{ fontSize: '13px', color: '#6b7280' }}>Loading users...</p>
+      ) : users.length === 0 ? (
+        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>No portal users yet.</p>
+      ) : (
+        <div style={{ marginBottom: '24px' }}>
+          {users.map(u => (
+            <div key={u.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              backgroundColor: '#0f1117',
+              borderRadius: '8px',
+              marginBottom: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  backgroundColor: u.role === 'SeniorDeveloper' ? '#f59e0b' : '#6366f1',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: '14px', fontWeight: '700'
+                }}>
+                  {(u.name || u.email)[0].toUpperCase()}
+                </div>
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                    {u.name || u.email}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '11px', color: '#6b7280' }}>{u.email}</span>
+                    <span style={{ fontSize: '10px', color: '#6b7280' }}>·</span>
+                    <span style={{
+                      fontSize: '11px',
+                      color: u.role === 'SeniorDeveloper' ? '#f59e0b' : '#6366f1'
+                    }}>
+                      {u.role}
+                    </span>
+                    {u.mfa_enabled && (
+                      <>
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>·</span>
+                        <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '700' }}>MFA ✓</span>
+                      </>
+                    )}
+                    {!u.is_active && (
+                      <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: '700' }}>Inactive</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => handleResetPassword(u.id)}
+                  style={{ ...BTN_DANGER, fontSize: '11px', padding: '4px 8px' }}
+                >
+                  Reset PW
+                </button>
+                {u.mfa_enabled && (
+                  <button
+                    onClick={() => handleResetMfa(u.id)}
+                    style={{ ...BTN_DANGER, fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    Reset MFA
+                  </button>
+                )}
+                {u.is_active && (
+                  <button
+                    onClick={() => handleDeactivate(u.id)}
+                    style={{ ...BTN_DANGER, fontSize: '11px', padding: '4px 8px', borderColor: '#ef444460' }}
+                  >
+                    Deactivate
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Invite Form */}
+      <div style={{ borderTop: '1px solid #2d3148', paddingTop: '20px' }}>
+        <p style={{ fontSize: '13px', fontWeight: '600', color: '#9ca3af', marginBottom: '12px' }}>
+          Invite New Developer
+        </p>
+        <form onSubmit={handleInvite}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+            <input
+              placeholder="Email"
+              value={inviteForm.email}
+              onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
+              style={{ ...INPUT_STYLE, width: '100%', boxSizing: 'border-box' }}
+              required
+              type="email"
+            />
+            <input
+              placeholder="Display name"
+              value={inviteForm.name}
+              onChange={e => setInviteForm(p => ({ ...p, name: e.target.value }))}
+              style={{ ...INPUT_STYLE, width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <select
+            value={inviteForm.role}
+            onChange={e => setInviteForm(p => ({ ...p, role: e.target.value }))}
+            style={{ ...INPUT_STYLE, width: '100%', boxSizing: 'border-box', marginBottom: '10px' }}
+          >
+            <option value="Developer">Developer</option>
+            <option value="SeniorDeveloper">Senior Developer</option>
+          </select>
+          {inviteError && (
+            <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px' }}>{inviteError}</p>
+          )}
+          {inviteResult && (
+            <div style={{
+              backgroundColor: '#0f1117',
+              border: '1px solid #16a34a40',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              marginBottom: '10px'
+            }}>
+              <p style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', margin: '0 0 4px' }}>
+                User invited successfully!
+              </p>
+              <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                Temporary password: <code style={{ color: '#6366f1' }}>{inviteResult.tempPassword}</code>
+              </p>
+              <p style={{ fontSize: '11px', color: '#6b7280', margin: '4px 0 0' }}>
+                Share this with the user — they must change it on first login.
+              </p>
+            </div>
+          )}
+          <button type="submit" style={BTN_PRIMARY}>Invite Developer</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
+  const { portalToken } = useAuth()
+  const AUTH_HEADER = portalToken ? { 'Authorization': `Bearer ${portalToken}` } : {}
+
   const [developers, setDevelopers] = useState([])
   const [apps, setApps] = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
-
-  // New developer form
   const [newDev, setNewDev] = useState({ user_id: '', user_email: '', user_name: '', role: 'Developer' })
   const [devError, setDevError] = useState(null)
   const [devSuccess, setDevSuccess] = useState(false)
-
-  // New assignment form
   const [newAssignment, setNewAssignment] = useState({ user_id: '', app_id: '' })
   const [assignError, setAssignError] = useState(null)
   const [assignSuccess, setAssignSuccess] = useState(false)
@@ -214,7 +439,6 @@ export default function Settings() {
       <div style={SECTION_STYLE}>
         <span style={LABEL_STYLE}>Developer Roles</span>
 
-        {/* Developer List */}
         {developers.length === 0 ? (
           <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
             No developers added yet.
@@ -233,17 +457,10 @@ export default function Settings() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
+                    width: '36px', height: '36px', borderRadius: '50%',
                     backgroundColor: dev.role === 'SeniorDeveloper' ? '#f59e0b' : '#6366f1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: '700',
-                    flexShrink: 0
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: '14px', fontWeight: '700', flexShrink: 0
                   }}>
                     {dev.user_name?.[0] || dev.user_email[0].toUpperCase()}
                   </div>
@@ -265,10 +482,7 @@ export default function Settings() {
                     <option value="Developer">Developer</option>
                     <option value="SeniorDeveloper">Senior Developer</option>
                   </select>
-                  <button
-                    onClick={() => handleRemoveDev(dev.user_id)}
-                    style={BTN_DANGER}
-                  >
+                  <button onClick={() => handleRemoveDev(dev.user_id)} style={BTN_DANGER}>
                     Remove
                   </button>
                 </div>
@@ -277,18 +491,14 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Add Developer Form */}
-        <div style={{
-          borderTop: '1px solid #2d3148',
-          paddingTop: '20px'
-        }}>
+        <div style={{ borderTop: '1px solid #2d3148', paddingTop: '20px' }}>
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#9ca3af', marginBottom: '12px' }}>
             Add Developer
           </p>
           <form onSubmit={handleAddDev}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <input
-                placeholder="User ID (from Entra)"
+                placeholder="User ID (optional)"
                 value={newDev.user_id}
                 onChange={e => setNewDev(p => ({ ...p, user_id: e.target.value }))}
                 style={{ ...INPUT_STYLE, width: '100%', boxSizing: 'border-box' }}
@@ -329,7 +539,6 @@ export default function Settings() {
           Control which developers can see and interact with each app.
         </p>
 
-        {/* Assignment List grouped by app */}
         {apps.map(app => {
           const appAssignments = assignments.filter(a => a.app_id === app.id)
           return (
@@ -341,12 +550,8 @@ export default function Settings() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  color: '#6366f1',
-                  backgroundColor: '#6366f115',
-                  padding: '2px 8px',
-                  borderRadius: '4px'
+                  fontSize: '11px', fontWeight: '700', color: '#6366f1',
+                  backgroundColor: '#6366f115', padding: '2px 8px', borderRadius: '4px'
                 }}>
                   {app.name}
                 </span>
@@ -364,19 +569,13 @@ export default function Settings() {
                   const dev = developers.find(d => d.user_id === a.user_id)
                   return (
                     <div key={a.user_id} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom: '1px solid #2d3148'
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 0', borderBottom: '1px solid #2d3148'
                     }}>
                       <span style={{ fontSize: '13px', color: '#e2e8f0' }}>
                         {dev?.user_name || dev?.user_email || a.user_id}
                       </span>
-                      <button
-                        onClick={() => handleRemoveAssignment(a.user_id, app.id)}
-                        style={BTN_DANGER}
-                      >
+                      <button onClick={() => handleRemoveAssignment(a.user_id, app.id)} style={BTN_DANGER}>
                         Revoke
                       </button>
                     </div>
@@ -387,7 +586,6 @@ export default function Settings() {
           )
         })}
 
-        {/* Add Assignment Form */}
         <div style={{ borderTop: '1px solid #2d3148', paddingTop: '20px', marginTop: '8px' }}>
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#9ca3af', marginBottom: '12px' }}>
             Grant App Access
@@ -424,6 +622,15 @@ export default function Settings() {
             <button type="submit" style={BTN_PRIMARY}>Grant Access</button>
           </form>
         </div>
+      </div>
+
+      {/* User Management Section */}
+      <div style={SECTION_STYLE}>
+        <span style={LABEL_STYLE}>User Management</span>
+        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
+          Invite new developers, reset passwords, and manage MFA.
+        </p>
+        <UserManagement authHeader={AUTH_HEADER} />
       </div>
     </div>
   )
