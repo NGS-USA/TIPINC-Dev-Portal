@@ -13,6 +13,7 @@ import appAssignmentsRouter from './routes/appAssignments.js'
 import deploymentsRouter from './routes/deployments.js'
 import auditLogRouter from './routes/auditLog.js'
 import notificationsRouter from './routes/notifications.js'
+import analyticsRouter from './routes/analytics.js'
 
 dotenv.config()
 
@@ -53,6 +54,7 @@ app.use('/api/app-assignments', appAssignmentsRouter)
 app.use('/api/deployments', deploymentsRouter)
 app.use('/api/audit-log', auditLogRouter)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/analytics', analyticsRouter)
 
 // 404 catch-all
 app.use((req, res) => {
