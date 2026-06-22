@@ -15,10 +15,10 @@ export async function submitRequest(payload) {
   return response.json()
 }
 
-export async function getRequests(filters = {}) {
+export async function getRequests(filters = {}, token) {
   const params = new URLSearchParams(filters).toString()
-  const response = await fetch(`${BASE_URL}/api/requests${params ? `?${params}` : ''}`)
-
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+  const response = await fetch(`${BASE_URL}/api/requests${params ? `?${params}` : ''}`, { headers })
   if (!response.ok) throw new Error('Failed to fetch requests')
   return response.json()
 }
@@ -29,8 +29,9 @@ export async function getRequestsByClient(clientId) {
   return response.json()
 }
 
-export async function getApps() {
-  const response = await fetch(`${BASE_URL}/api/apps`)
+export async function getApps(token) {
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+  const response = await fetch(`${BASE_URL}/api/apps`, { headers })
   if (!response.ok) throw new Error('Failed to fetch apps')
   return response.json()
 }
@@ -90,5 +91,19 @@ export async function getChangelogs(appId) {
     : `${BASE_URL}/api/deployments/changelogs`
   const response = await fetch(url)
   if (!response.ok) throw new Error('Failed to fetch changelogs')
+  return response.json()
+}
+
+export async function unassignRequest(requestId) {
+  const response = await fetch(`${BASE_URL}/api/requests/${requestId}/unassign`, {
+    method: 'PATCH'
+  })
+  if (!response.ok) throw new Error('Failed to unassign request')
+  return response.json()
+}
+
+export async function getNotesByRequest(requestId) {
+  const response = await fetch(`${BASE_URL}/api/notes/${requestId}`)
+  if (!response.ok) throw new Error('Failed to fetch notes')
   return response.json()
 }

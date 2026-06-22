@@ -4,8 +4,17 @@ export async function getAllApps(req, res) {
   try {
     let result
 
-    if (req.user) {
-      // Auth is active — only return apps this user is assigned to
+    if (req.portalUser) {
+      // Portal auth — filter by app assignments
+      result = await pool.query(
+        `SELECT a.* FROM apps a
+         INNER JOIN app_assignments aa ON a.id = aa.app_id
+         WHERE aa.user_id = $1 AND a.is_active = true
+         ORDER BY a.name ASC`,
+        [req.portalUser.id]
+      )
+    } else if (req.user) {
+      // Entra auth — filter by app assignments
       result = await pool.query(
         `SELECT a.* FROM apps a
          INNER JOIN app_assignments aa ON a.id = aa.app_id
@@ -14,7 +23,7 @@ export async function getAllApps(req, res) {
         [req.user.id]
       )
     } else {
-      // Dev mode — return all apps
+      // Dev mode — return all
       result = await pool.query(
         'SELECT * FROM apps WHERE is_active = true ORDER BY name ASC'
       )

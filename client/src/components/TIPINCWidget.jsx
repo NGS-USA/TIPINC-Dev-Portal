@@ -9,33 +9,32 @@ export default function TIPINCWidget({ theme = {}, context = {}, defaultTab = 'f
   const t = {
     primaryColor: '#3b82f6',
     backgroundColor: '#ffffff',
-    borderColor: '#e5e7eb',
-    textColor: '#111827',
-    mutedTextColor: '#6b7280',
+    surfaceColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+    textColor: '#0f172a',
+    mutedTextColor: '#64748b',
     fontFamily: 'Inter, system-ui, sans-serif',
-    borderRadius: '12px',
+    borderRadius: '16px',
     ...theme
   }
 
   const tabs = [
-    { id: 'form', label: 'Submit a Request' },
-    { id: 'tracker', label: 'My Requests' },
-    { id: 'whats-new', label: "What's New" }
+    { id: 'form', label: 'Submit' },
+    { id: 'tracker', label: 'My requests' },
+    { id: 'whats-new', label: "What's new" }
   ]
 
+  const sharedTheme = { ...t, borderRadius: '0 0 16px 16px' }
+
   return (
-    <div style={{
-      fontFamily: t.fontFamily,
-      width: '100%',
-      maxWidth: '520px'
-    }}>
+    <div style={{ fontFamily: t.fontFamily, width: '100%', maxWidth: '520px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', borderRadius: t.borderRadius }}>
       {/* Tab Bar */}
       <div style={{
         display: 'flex',
-        borderBottom: `2px solid ${t.borderColor}`,
         backgroundColor: t.backgroundColor,
         borderRadius: `${t.borderRadius} ${t.borderRadius} 0 0`,
-        overflow: 'hidden'
+        borderBottom: `1px solid ${t.borderColor}`,
+        padding: '0 4px'
       }}>
         {tabs.map(tab => (
           <button
@@ -43,17 +42,17 @@ export default function TIPINCWidget({ theme = {}, context = {}, defaultTab = 'f
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1,
-              padding: '14px 10px',
+              padding: '14px 8px',
               fontSize: '13px',
-              fontWeight: '600',
+              fontWeight: activeTab === tab.id ? '700' : '500',
               border: 'none',
               borderBottom: `2px solid ${activeTab === tab.id ? t.primaryColor : 'transparent'}`,
-              backgroundColor: activeTab === tab.id ? `${t.primaryColor}08` : t.backgroundColor,
+              backgroundColor: 'transparent',
               color: activeTab === tab.id ? t.primaryColor : t.mutedTextColor,
               cursor: 'pointer',
               fontFamily: t.fontFamily,
               transition: 'all 0.15s',
-              marginBottom: '-2px'
+              marginBottom: '-1px'
             }}
           >
             {tab.label}
@@ -61,27 +60,11 @@ export default function TIPINCWidget({ theme = {}, context = {}, defaultTab = 'f
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div style={{ borderRadius: `0 0 ${t.borderRadius} ${t.borderRadius}`, overflow: 'hidden' }}>
-        {activeTab === 'form' && (
-          <RequestForm
-            theme={{ ...theme, borderRadius: `0 0 ${t.borderRadius} ${t.borderRadius}` }}
-            context={context}
-            onSubmit={() => setActiveTab('tracker')}
-          />
-        )}
-        {activeTab === 'tracker' && (
-          <RequestTracker
-            theme={{ ...theme, borderRadius: `0 0 ${t.borderRadius} ${t.borderRadius}` }}
-            context={context}
-          />
-        )}
-        {activeTab === 'whats-new' && (
-          <WhatsNew
-            theme={{ ...theme, borderRadius: `0 0 ${t.borderRadius} ${t.borderRadius}` }}
-            context={context}
-          />
-        )}
+      {/* Content */}
+      <div>
+        {activeTab === 'form' && <RequestForm theme={sharedTheme} context={context} onSubmit={() => setActiveTab('tracker')} />}
+        {activeTab === 'tracker' && <RequestTracker theme={sharedTheme} context={context} />}
+        {activeTab === 'whats-new' && <WhatsNew theme={sharedTheme} context={context} />}
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -9,6 +10,7 @@ const UPDATE_TYPES = [
 ]
 
 export default function DeploymentModal({ requests, appId, onClose, onDeployed }) {
+  const { user } = useAuth()
   const [selectedIds, setSelectedIds] = useState(requests.map(r => r.id))
   const [updateType, setUpdateType] = useState('patch')
   const [internalNotes, setInternalNotes] = useState('')
@@ -25,18 +27,9 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
   }
 
   async function handleDeploy() {
-    if (selectedIds.length === 0) {
-      setError('Select at least one request to deploy')
-      return
-    }
-    if (!internalNotes.trim()) {
-      setError('Internal notes are required')
-      return
-    }
-    if (!clientSummary.trim()) {
-      setError('Client-facing summary is required')
-      return
-    }
+    if (selectedIds.length === 0) { setError('Select at least one request to deploy'); return }
+    if (!internalNotes.trim()) { setError('Internal notes are required'); return }
+    if (!clientSummary.trim()) { setError('Client-facing summary is required'); return }
 
     try {
       setDeploying(true)
@@ -51,8 +44,8 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
           update_type: updateType,
           internal_notes: internalNotes,
           client_summary: clientSummary,
-          dev_id: 'dev-001',
-          approved_by: 'dev-001'
+          dev_id: user?.id || 'system',
+          approved_by: user?.name || user?.email || 'system'
         })
       })
 
@@ -73,10 +66,7 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
 
   async function handleReject(requestId) {
     const note = rejectionNotes[requestId]
-    if (!note?.trim()) {
-      setError('A rejection note is required')
-      return
-    }
+    if (!note?.trim()) { setError('A rejection note is required'); return }
     try {
       const res = await fetch(`${API}/api/requests/${requestId}/status`, {
         method: 'PATCH',
@@ -84,7 +74,6 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
         body: JSON.stringify({ status: 'In Progress', rejection_note: note })
       })
       if (!res.ok) throw new Error('Failed to reject request')
-      // Remove from list
       if (onDeployed) onDeployed({ rejected: true })
       onClose()
     } catch (err) {
@@ -94,18 +83,8 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          zIndex: 200
-        }}
-      />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 200 }} />
 
-      {/* Modal */}
       <div style={{
         position: 'fixed',
         top: '50%',
@@ -125,55 +104,30 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-              Create Deployment
-            </h2>
-            <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0' }}>
-              Bundle and deploy Pending Approval requests
-            </p>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff', margin: 0 }}>Create Deployment</h2>
+            <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0' }}>Bundle and deploy Pending Approval requests</p>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#6b7280',
-              fontSize: '20px',
-              cursor: 'pointer'
-            }}
-          >
-            ✕
-          </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '20px', cursor: 'pointer' }}>✕</button>
         </div>
 
         {/* Request Selection */}
         <div style={{ marginBottom: '24px' }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: '700',
-            color: '#6b7280',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '10px'
-          }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
             Include in Deployment ({selectedIds.length} selected)
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {requests.map(request => (
               <div key={request.id}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '10px 14px',
-                    backgroundColor: selectedIds.includes(request.id) ? '#6366f115' : '#0f1117',
-                    border: `1px solid ${rejectingId === request.id ? '#ef4444' : selectedIds.includes(request.id) ? '#6366f1' : '#2d3148'}`,
-                    borderRadius: rejectingId === request.id ? '8px 8px 0 0' : '8px',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  {/* Checkbox */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 14px',
+                  backgroundColor: selectedIds.includes(request.id) ? '#6366f115' : '#0f1117',
+                  border: `1px solid ${rejectingId === request.id ? '#ef4444' : selectedIds.includes(request.id) ? '#6366f1' : '#2d3148'}`,
+                  borderRadius: rejectingId === request.id ? '8px 8px 0 0' : '8px',
+                  transition: 'all 0.15s'
+                }}>
                   <div
                     onClick={() => rejectingId !== request.id && toggleRequest(request.id)}
                     style={{
@@ -194,7 +148,6 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
                     )}
                   </div>
 
-                  {/* Request Info */}
                   <div
                     style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
                     onClick={() => rejectingId !== request.id && toggleRequest(request.id)}
@@ -202,12 +155,9 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
                     <p style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {request.title}
                     </p>
-                    <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>
-                      {request.category}
-                    </p>
+                    <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>{request.category}</p>
                   </div>
 
-                  {/* Reject Button */}
                   <button
                     onClick={() => {
                       setRejectingId(rejectingId === request.id ? null : request.id)
@@ -230,7 +180,6 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
                   </button>
                 </div>
 
-                {/* Rejection Note Input */}
                 {rejectingId === request.id && (
                   <div style={{
                     backgroundColor: '#1a0a0a',
@@ -283,14 +232,7 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
 
         {/* Update Type */}
         <div style={{ marginBottom: '24px' }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: '700',
-            color: '#6b7280',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '10px'
-          }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
             Update Type
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -320,22 +262,11 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
                     flexShrink: 0
                   }} />
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                      {type.label}
-                    </p>
-                    <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>
-                      {type.description}
-                    </p>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', margin: 0 }}>{type.label}</p>
+                    <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>{type.description}</p>
                   </div>
                 </div>
-                <span style={{
-                  fontSize: '11px',
-                  color: '#6b7280',
-                  fontFamily: 'monospace',
-                  backgroundColor: '#2d3148',
-                  padding: '2px 8px',
-                  borderRadius: '4px'
-                }}>
+                <span style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace', backgroundColor: '#2d3148', padding: '2px 8px', borderRadius: '4px' }}>
                   {type.example}
                 </span>
               </div>
@@ -345,14 +276,7 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
 
         {/* Internal Notes */}
         <div style={{ marginBottom: '16px' }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: '700',
-            color: '#6b7280',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '8px'
-          }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
             Internal Notes
           </p>
           <textarea
@@ -378,14 +302,7 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
 
         {/* Client Summary */}
         <div style={{ marginBottom: '24px' }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: '700',
-            color: '#6b7280',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '8px'
-          }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
             Client-Facing Summary (What's New)
           </p>
           <textarea
@@ -409,13 +326,8 @@ export default function DeploymentModal({ requests, appId, onClose, onDeployed }
           />
         </div>
 
-        {error && (
-          <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px' }}>
-            {error}
-          </p>
-        )}
+        {error && <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px' }}>{error}</p>}
 
-        {/* Deploy Button */}
         <button
           onClick={handleDeploy}
           disabled={deploying}

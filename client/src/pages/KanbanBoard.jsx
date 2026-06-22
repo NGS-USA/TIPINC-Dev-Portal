@@ -9,11 +9,15 @@ import Settings from './Settings'
 import DeploymentModal from '../components/DeploymentModal'
 import VersionHistory from './VersionHistory'
 import AuditLog from './AuditLog'
+import Analytics from './Analytics'
+import NewRequestModal from '../components/NewRequestModal'
+import { useAuth } from '../context/AuthContext'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 const CATEGORIES = ['All', 'New Feature', 'Bug / Fix', 'UI Update', 'Stats / Reporting', 'Workflow Change']
 
 export default function KanbanBoard() {
+  const { isSeniorDev, portalToken } = useAuth()
   const [apps, setApps] = useState([])
   const [requests, setRequests] = useState([])
   const [developers, setDevelopers] = useState([])
@@ -28,6 +32,7 @@ export default function KanbanBoard() {
   const [filterPriority, setFilterPriority] = useState('All')
   const [filterCategory, setFilterCategory] = useState('All')
   const [showDeployment, setShowDeployment] = useState(false)
+  const [showNewRequest, setShowNewRequest] = useState(false)
 
   useEffect(() => {
     fetchApps()
@@ -41,7 +46,7 @@ export default function KanbanBoard() {
 
   async function fetchApps() {
     try {
-      const data = await getApps()
+      const data = await getApps(portalToken)
       setApps(data)
     } catch (err) {
       console.error('Failed to fetch apps:', err)
@@ -52,7 +57,7 @@ export default function KanbanBoard() {
     try {
       setLoading(true)
       const filters = selectedApp !== 'all' ? { app_id: selectedApp } : {}
-      const data = await getRequests(filters)
+      const data = await getRequests(filters, portalToken)
       setRequests(data)
     } catch (err) {
       console.error('Failed to fetch requests:', err)
@@ -152,6 +157,8 @@ export default function KanbanBoard() {
         <VersionHistory selectedApp={selectedApp !== 'all' ? selectedApp : null} />
         ) : activePage === 'audit' ? (
           <AuditLog />
+          ) : activePage === 'analytics' ? (
+          <Analytics selectedApp={selectedApp !== 'all' ? selectedApp : null} />
       ) : (
         <>
           {/* Board Header */}
@@ -212,6 +219,24 @@ export default function KanbanBoard() {
                   }}
                 >
                   ↻ Refresh
+                </button>
+                <button
+                  onClick={() => setShowNewRequest(true)}
+                  style={{
+                    backgroundColor: '#6366f1',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    padding: '6px 14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  + New Request
                 </button>
               </div>
             </div>
@@ -358,8 +383,8 @@ export default function KanbanBoard() {
             padding: '28px',
             overflowX: 'auto'
           }}>
-            {/* Deploy Button */}
-            {pendingRequests.length > 0 && (
+           {/* Deploy Button — Senior Dev only */}
+            {isSeniorDev && pendingRequests.length > 0 && (
               <div style={{ marginBottom: '16px' }}>
                 <button
                   onClick={() => setShowDeployment(true)}
@@ -448,6 +473,17 @@ export default function KanbanBoard() {
                 onDeployed={() => {
                   fetchRequests()
                   setShowDeployment(false)
+                }}
+              />
+            )}
+
+            {showNewRequest && (
+              <NewRequestModal
+                apps={apps}
+                onClose={() => setShowNewRequest(false)}
+                onCreated={() => {
+                  fetchRequests()
+                  setShowNewRequest(false)
                 }}
               />
             )}

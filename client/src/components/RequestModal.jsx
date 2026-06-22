@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { assignRequest, getDevelopers } from '../utils/api'
+import { assignRequest, getDevelopers, unassignRequest } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 const PRIORITY_COLORS = {
   High: { color: '#ef4444', bg: '#fef2f2' },
@@ -18,14 +21,20 @@ const CATEGORY_ICONS = {
 export default function RequestModal({ request, onClose, onUpdate }) {
   if (!request) return null
 
+  const { user } = useAuth()
   const priority = PRIORITY_COLORS[request.priority] || PRIORITY_COLORS.Medium
   const [developers, setDevelopers] = useState([])
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState(null)
   const [assigned, setAssigned] = useState(request.assigned_dev_id || null)
+  const [notes, setNotes] = useState([])
+  const [newNote, setNewNote] = useState('')
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [addingNote, setAddingNote] = useState(false)
 
   useEffect(() => {
     fetchDevelopers()
+    fetchNotes()
   }, [])
 
   async function fetchDevelopers() {
@@ -34,6 +43,16 @@ export default function RequestModal({ request, onClose, onUpdate }) {
       setDevelopers(data)
     } catch (err) {
       console.error('Failed to fetch developers:', err)
+    }
+  }
+
+  async function fetchNotes() {
+    try {
+      const res = await fetch(`${API}/api/notes/${request.id}`)
+      const data = await res.json()
+      setNotes(data)
+    } catch (err) {
+      console.error('Failed to fetch notes:', err)
     }
   }
 
@@ -51,6 +70,46 @@ export default function RequestModal({ request, onClose, onUpdate }) {
     }
   }
 
+  async function handleUnassign() {
+    try {
+      const updated = await unassignRequest(request.id)
+      setAssigned(null)
+      if (onUpdate) onUpdate(updated)
+    } catch (err) {
+      console.error('Failed to unassign:', err)
+    }
+  }
+
+  async function handleAddNote() {
+    if (!newNote.trim()) return
+    try {
+      setAddingNote(true)
+      const res = await fetch(`${API}/api/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          request_id: request.id,
+          author_id: user?.id || null,
+          author_name: user?.name || user?.email || 'Developer',
+          content: newNote,
+          is_private: isPrivate
+        })
+      })
+      const note = await res.json()
+      setNotes(prev => [...prev, note])
+      setNewNote('')
+    } catch (err) {
+      console.error('Failed to add note:', err)
+    } finally {
+      setAddingNote(false)
+    }
+  }
+
+  async function handleDeleteNote(id) {
+    await fetch(`${API}/api/notes/${id}`, { method: 'DELETE' })
+    setNotes(prev => prev.filter(n => n.id !== id))
+  }
+
   function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'long',
@@ -65,7 +124,6 @@ export default function RequestModal({ request, onClose, onUpdate }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -76,7 +134,6 @@ export default function RequestModal({ request, onClose, onUpdate }) {
         }}
       />
 
-      {/* Modal */}
       <div style={{
         position: 'fixed',
         top: '50%',
@@ -199,20 +256,36 @@ export default function RequestModal({ request, onClose, onUpdate }) {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setAssigned(null)}
-                style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  background: 'none',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  cursor: 'pointer'
-                }}
-              >
-                Change
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setAssigned(null)}
+                  style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                    background: 'none',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Change
+                </button>
+                <button
+                  onClick={handleUnassign}
+                  style={{
+                    fontSize: '12px',
+                    color: '#ef4444',
+                    background: 'none',
+                    border: '1px solid #fecaca',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Unassign
+                </button>
+              </div>
             </div>
           ) : (
             <div>
@@ -275,6 +348,110 @@ export default function RequestModal({ request, onClose, onUpdate }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Notes */}
+        <div style={{
+          backgroundColor: '#f9fafb',
+          border: '1px solid #e5e7eb',
+          borderRadius: '10px',
+          padding: '16px',
+          marginBottom: '20px'
+        }}>
+          <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Notes
+          </p>
+
+          {notes.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px' }}>No notes yet.</p>
+          ) : (
+            <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {notes.map(note => (
+                <div key={note.id} style={{
+                  backgroundColor: note.is_private ? '#fffbeb' : '#ffffff',
+                  border: `1px solid ${note.is_private ? '#fde68a' : '#e5e7eb'}`,
+                  borderRadius: '8px',
+                  padding: '10px 12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>
+                        {note.author_name}
+                      </span>
+                      {note.is_private && (
+                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#b45309', backgroundColor: '#fef3c7', padding: '1px 6px', borderRadius: '99px' }}>
+                          Private
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                        {new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteNote(note.id)}
+                        style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: '1.5' }}>
+                    {note.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <textarea
+            value={newNote}
+            onChange={e => setNewNote(e.target.value)}
+            placeholder="Add a note..."
+            rows={2}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '13px',
+              color: '#111827',
+              resize: 'none',
+              outline: 'none',
+              boxSizing: 'border-box',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              marginBottom: '8px'
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={e => setIsPrivate(e.target.checked)}
+              />
+              <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Private (dev only)</span>
+            </label>
+            <button
+              onClick={handleAddNote}
+              disabled={addingNote || !newNote.trim()}
+              style={{
+                padding: '6px 14px',
+                backgroundColor: '#6366f1',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: addingNote || !newNote.trim() ? 'default' : 'pointer',
+                opacity: addingNote || !newNote.trim() ? 0.6 : 1,
+                fontFamily: 'Inter, system-ui, sans-serif'
+              }}
+            >
+              Add note
+            </button>
+          </div>
         </div>
 
         {/* Details Grid */}

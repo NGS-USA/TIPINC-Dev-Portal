@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import NotificationBell from './NotificationBell'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   {
@@ -10,6 +11,17 @@ const NAV_ITEMS = [
         <rect x="3" y="3" width="7" height="18" rx="1"/>
         <rect x="14" y="3" width="7" height="10" rx="1"/>
         <rect x="14" y="17" width="7" height="4" rx="1"/>
+      </svg>
+    )
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
       </svg>
     )
   },
@@ -39,6 +51,7 @@ const NAV_ITEMS = [
   {
     id: 'settings',
     label: 'Settings',
+    seniorOnly: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -49,6 +62,10 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ activePage, onNavigate }) {
+  const { logout, isSeniorDev } = useAuth()
+
+  const visibleItems = NAV_ITEMS.filter(item => !item.seniorOnly || isSeniorDev)
+
   return (
     <div style={{
       width: '220px',
@@ -95,7 +112,7 @@ export default function Sidebar({ activePage, onNavigate }) {
 
       {/* Nav Items */}
       <nav style={{ flex: 1, padding: '12px 10px' }}>
-        {NAV_ITEMS.map(item => (
+        {visibleItems.map(item => (
           <button
             key={item.id}
             onClick={() => !item.disabled && onNavigate && onNavigate(item.id)}
@@ -108,11 +125,7 @@ export default function Sidebar({ activePage, onNavigate }) {
               borderRadius: '8px',
               border: 'none',
               backgroundColor: activePage === item.id ? '#6366f115' : 'transparent',
-              color: item.disabled
-                ? '#3d4468'
-                : activePage === item.id
-                ? '#6366f1'
-                : '#9ca3af',
+              color: item.disabled ? '#3d4468' : activePage === item.id ? '#6366f1' : '#9ca3af',
               fontSize: '13px',
               fontWeight: '600',
               cursor: item.disabled ? 'default' : 'pointer',
@@ -123,24 +136,11 @@ export default function Sidebar({ activePage, onNavigate }) {
           >
             {item.icon}
             {item.label}
-            {item.disabled && (
-              <span style={{
-                marginLeft: 'auto',
-                fontSize: '10px',
-                color: '#3d4468',
-                fontWeight: '600',
-                backgroundColor: '#2d3148',
-                padding: '2px 6px',
-                borderRadius: '4px'
-              }}>
-                Soon
-              </span>
-            )}
           </button>
         ))}
       </nav>
 
-      {/* Notification Bell + Version */}
+      {/* Footer */}
       <div style={{
         padding: '12px 20px',
         borderTop: '1px solid #2d3148',
@@ -148,9 +148,27 @@ export default function Sidebar({ activePage, onNavigate }) {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <span style={{ fontSize: '11px', color: '#3d4468', fontWeight: '600' }}>
-          v{__APP_VERSION__}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#3d4468', fontWeight: '600' }}>
+            v{__APP_VERSION__}
+          </span>
+          <button
+            onClick={logout}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#6b7280',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: '600'
+            }}
+          >
+            Sign out
+          </button>
+        </div>
         <NotificationBell />
       </div>
     </div>

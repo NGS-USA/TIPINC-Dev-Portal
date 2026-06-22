@@ -4,8 +4,8 @@ import { MsalProvider } from '@azure/msal-react'
 import { msalConfig } from './utils/authConfig'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import FormPreview from './pages/FormPreview'
 import KanbanBoard from './pages/KanbanBoard'
+import FormPreview from './pages/FormPreview'
 
 const msalInstance = new PublicClientApplication(msalConfig)
 

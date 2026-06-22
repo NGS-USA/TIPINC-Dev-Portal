@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -8,10 +9,10 @@ const TYPE_CONFIG = {
   ASSIGNED:         { icon: '👤', color: '#6366f1' }
 }
 
-// Hardcoded for dev mode — will use real user ID when auth is active
-const CURRENT_USER_ID = 'dev-001'
-
 export default function NotificationBell() {
+  const { user } = useAuth()
+  const CURRENT_USER_ID = user?.id || 'dev-001'
+
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -19,10 +20,9 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications()
-    // Poll every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [CURRENT_USER_ID])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -55,6 +55,16 @@ export default function NotificationBell() {
     setUnreadCount(0)
   }
 
+  async function handleDelete(e, id) {
+    e.stopPropagation()
+    await fetch(`${API}/api/notifications/${id}`, { method: 'DELETE' })
+    setNotifications(prev => {
+      const notif = prev.find(n => n.id === id)
+      if (notif && !notif.read) setUnreadCount(c => Math.max(0, c - 1))
+      return prev.filter(n => n.id !== id)
+    })
+  }
+
   function formatTime(dateStr) {
     const date = new Date(dateStr)
     const now = new Date()
@@ -67,7 +77,6 @@ export default function NotificationBell() {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      {/* Bell Button */}
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -108,7 +117,6 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div style={{
           position: 'absolute',
@@ -123,7 +131,6 @@ export default function NotificationBell() {
           zIndex: 300,
           overflow: 'hidden'
         }}>
-          {/* Header */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -152,13 +159,10 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* Notification List */}
           <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center' }}>
-                <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
-                  No notifications yet
-                </p>
+                <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>No notifications yet</p>
               </div>
             ) : (
               notifications.map(notif => {
@@ -174,10 +178,10 @@ export default function NotificationBell() {
                       borderBottom: '1px solid #2d314830',
                       backgroundColor: notif.read ? 'transparent' : '#6366f108',
                       cursor: notif.read ? 'default' : 'pointer',
-                      transition: 'background-color 0.1s'
+                      transition: 'background-color 0.1s',
+                      alignItems: 'flex-start'
                     }}
                   >
-                    {/* Icon */}
                     <div style={{
                       width: '32px',
                       height: '32px',
@@ -192,7 +196,6 @@ export default function NotificationBell() {
                       {config.icon}
                     </div>
 
-                    {/* Content */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                         <p style={{
@@ -203,16 +206,27 @@ export default function NotificationBell() {
                         }}>
                           {notif.title}
                         </p>
-                        {!notif.read && (
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            backgroundColor: '#6366f1',
-                            flexShrink: 0,
-                            marginTop: '4px'
-                          }} />
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          {!notif.read && (
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                          )}
+                          <button
+                            onClick={(e) => handleDelete(e, notif.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#3d4468',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              padding: '0',
+                              lineHeight: 1,
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                       {notif.message && (
                         <p style={{
