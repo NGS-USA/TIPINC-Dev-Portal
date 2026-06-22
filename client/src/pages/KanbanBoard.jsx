@@ -10,6 +10,7 @@ import DeploymentModal from '../components/DeploymentModal'
 import VersionHistory from './VersionHistory'
 import AuditLog from './AuditLog'
 import Analytics from './Analytics'
+import NewRequestModal from '../components/NewRequestModal'
 
 const COLUMNS = ['Incoming', 'In Review', 'In Progress', 'Pending Approval', 'Deployed']
 const CATEGORIES = ['All', 'New Feature', 'Bug / Fix', 'UI Update', 'Stats / Reporting', 'Workflow Change']
@@ -29,6 +30,7 @@ export default function KanbanBoard() {
   const [filterPriority, setFilterPriority] = useState('All')
   const [filterCategory, setFilterCategory] = useState('All')
   const [showDeployment, setShowDeployment] = useState(false)
+  const [showNewRequest, setShowNewRequest] = useState(false)
 
   useEffect(() => {
     fetchApps()
@@ -215,6 +217,24 @@ export default function KanbanBoard() {
                   }}
                 >
                   ↻ Refresh
+                </button>
+                <button
+                  onClick={() => setShowNewRequest(true)}
+                  style={{
+                    backgroundColor: '#6366f1',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    padding: '6px 14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  + New Request
                 </button>
               </div>
             </div>
@@ -451,6 +471,17 @@ export default function KanbanBoard() {
                 onDeployed={() => {
                   fetchRequests()
                   setShowDeployment(false)
+                }}
+              />
+            )}
+
+            {showNewRequest && (
+              <NewRequestModal
+                apps={apps}
+                onClose={() => setShowNewRequest(false)}
+                onCreated={() => {
+                  fetchRequests()
+                  setShowNewRequest(false)
                 }}
               />
             )}

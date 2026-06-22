@@ -1,12 +1,22 @@
 import { createContext, useContext } from 'react'
-import { useMsal } from '@azure/msal-react'
+import { useMsal, useIsAuthenticated } from '@azure/msal-react'
 import { loginRequest } from '../utils/authConfig'
 
 const AuthContext = createContext(null)
 
+const DEV_USER = {
+  id: null,
+  email: null,
+  name: null,
+  role: 'SeniorDeveloper',
+  isDev: true,
+  isSeniorDev: true
+}
+
 export function AuthProvider({ children }) {
   const { instance, accounts } = useMsal()
-  const user = accounts[0] || null
+  const isAuthenticated = useIsAuthenticated()
+  const msalUser = accounts[0] || null
 
   async function login() {
     await instance.loginRedirect(loginRequest)
@@ -17,11 +27,11 @@ export function AuthProvider({ children }) {
   }
 
   async function getToken() {
-    if (!user) return null
+    if (!msalUser) return null
     try {
       const response = await instance.acquireTokenSilent({
         ...loginRequest,
-        account: user
+        account: msalUser
       })
       return response.accessToken
     } catch {
@@ -29,12 +39,17 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const roles = user?.idTokenClaims?.roles || []
-  const isSeniorDev = roles.includes('SeniorDeveloper')
-  const isDev = roles.includes('Developer') || isSeniorDev
+  const user = isAuthenticated && msalUser ? {
+    id: msalUser.localAccountId,
+    email: msalUser.username,
+    name: msalUser.name,
+    role: msalUser.idTokenClaims?.roles?.[0] || 'Developer',
+    isDev: true,
+    isSeniorDev: msalUser.idTokenClaims?.roles?.includes('SeniorDeveloper') || false
+  } : DEV_USER
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, getToken, roles, isDev, isSeniorDev }}>
+    <AuthContext.Provider value={{ user, login, logout, getToken, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   )

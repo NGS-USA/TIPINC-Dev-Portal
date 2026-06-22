@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { assignRequest, getDevelopers, unassignRequest } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -20,6 +21,7 @@ const CATEGORY_ICONS = {
 export default function RequestModal({ request, onClose, onUpdate }) {
   if (!request) return null
 
+  const { user } = useAuth()
   const priority = PRIORITY_COLORS[request.priority] || PRIORITY_COLORS.Medium
   const [developers, setDevelopers] = useState([])
   const [assigning, setAssigning] = useState(false)
@@ -87,8 +89,8 @@ export default function RequestModal({ request, onClose, onUpdate }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           request_id: request.id,
-          author_id: 'dev-001',
-          author_name: 'Louis',
+          author_id: user?.id || null,
+          author_name: user?.name || user?.email || 'Developer',
           content: newNote,
           is_private: isPrivate
         })
@@ -122,7 +124,6 @@ export default function RequestModal({ request, onClose, onUpdate }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -133,7 +134,6 @@ export default function RequestModal({ request, onClose, onUpdate }) {
         }}
       />
 
-      {/* Modal */}
       <div style={{
         position: 'fixed',
         top: '50%',
