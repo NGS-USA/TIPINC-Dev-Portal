@@ -158,6 +158,38 @@ function RequestCard({ request, theme: t }) {
             </div>
           )}
 
+          {/* Attachments */}
+          {request.attachments && request.attachments.length > 0 && (
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '11px', fontWeight: '700', color: t.mutedTextColor, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Attachments
+              </p>
+              {request.attachments.map((file, index) => (
+                <a
+                  key={index}
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '7px 10px', backgroundColor: t.backgroundColor,
+                    border: `1px solid ${t.borderColor}`, borderRadius: '8px',
+                    textDecoration: 'none', marginBottom: '4px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>
+                    {file.type?.startsWith('image/') ? '🖼️' : file.type === 'application/pdf' ? '📄' : '📎'}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: t.textColor, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {file.name}
+                  </span>
+                  <span style={{ fontSize: '11px', color: t.primaryColor }}>Open →</span>
+                </a>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '12px', color: t.mutedTextColor }}>Priority: <strong>{request.priority}</strong></span>
             <span style={{ fontSize: '12px', color: t.mutedTextColor }}>{formatDate(request.submitted_at)}</span>

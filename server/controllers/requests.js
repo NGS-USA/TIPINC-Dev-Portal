@@ -68,7 +68,7 @@ export async function getRequestById(req, res) {
 
 export async function createRequest(req, res) {
   try {
-    const { app_id, client_id, location_id, user_id, category, priority, title, description } = req.body
+    const { app_id, client_id, location_id, user_id, category, priority, title, description, attachments } = req.body
 
     if (!app_id || !client_id || !category || !title) {
       return res.status(400).json({ error: 'app_id, client_id, category, and title are required' })
@@ -76,11 +76,12 @@ export async function createRequest(req, res) {
 
     const locId = location_id && location_id !== 'null' ? location_id : null
     const usrId = user_id && user_id !== 'null' ? user_id : null
+    const attachmentData = attachments && Array.isArray(attachments) ? attachments : []
 
     const result = await pool.query(
-      `INSERT INTO requests (app_id, client_id, location_id, user_id, category, priority, title, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [app_id, client_id, locId, usrId, category, priority || 'Medium', title, description]
+      `INSERT INTO requests (app_id, client_id, location_id, user_id, category, priority, title, description, attachments)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [app_id, client_id, locId, usrId, category, priority || 'Medium', title, description, JSON.stringify(attachmentData)]
     )
 
     const newRequest = result.rows[0]
@@ -94,7 +95,7 @@ export async function createRequest(req, res) {
         'REQUEST_SUBMITTED',
         'request',
         newRequest.id,
-        JSON.stringify({ category, priority, title, app_id, client_id }),
+        JSON.stringify({ category, priority, title, app_id, client_id, attachment_count: attachmentData.length }),
         req.ip
       ]
     )

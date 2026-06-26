@@ -454,6 +454,52 @@ export default function RequestModal({ request, onClose, onUpdate }) {
           </div>
         </div>
 
+        {/* Attachments */}
+        {request.attachments && request.attachments.length > 0 && (
+          <div style={{
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '10px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Attachments
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {request.attachments.map((file, index) => (
+                <a
+                  key={index}
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '8px 12px', backgroundColor: '#ffffff',
+                    border: '1px solid #e5e7eb', borderRadius: '8px',
+                    textDecoration: 'none', transition: 'background-color 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                >
+                  <span style={{ fontSize: '18px' }}>
+                    {file.type?.startsWith('image/') ? '🖼️' : file.type === 'application/pdf' ? '📄' : '📎'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {file.name}
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>
+                      {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'View file'}
+                    </p>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#6366f1', fontWeight: '600' }}>Open →</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Details Grid */}
         <div style={{
           display: 'grid',
