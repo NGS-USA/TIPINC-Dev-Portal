@@ -13,6 +13,11 @@
     "@azure/msal-browser": "^5.13.0",
     "@azure/msal-react": "^5.4.4",
     "@supabase/supabase-js": "^2.108.2",
+    "@tiptap/extension-link": "^3.27.1",
+    "@tiptap/extension-placeholder": "^3.27.1",
+    "@tiptap/pm": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.18.0"

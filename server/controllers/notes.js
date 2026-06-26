@@ -15,14 +15,15 @@ export async function getNotes(req, res) {
 
 export async function addNote(req, res) {
   try {
-    const { request_id, author_id, author_name, content, is_private } = req.body
+    const { request_id, author_id, author_name, content, is_private, attachments } = req.body
     if (!request_id || !content) {
       return res.status(400).json({ error: 'request_id and content are required' })
     }
+    const attachmentData = attachments && Array.isArray(attachments) ? attachments : []
     const result = await pool.query(
-      `INSERT INTO request_notes (request_id, author_id, author_name, content, is_private)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [request_id, author_id || 'dev-001', author_name || 'Developer', content, is_private || false]
+      `INSERT INTO request_notes (request_id, author_id, author_name, content, is_private, attachments)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [request_id, author_id || null, author_name || 'Developer', content, is_private || false, JSON.stringify(attachmentData)]
     )
     res.status(201).json(result.rows[0])
   } catch (err) {

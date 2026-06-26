@@ -150,9 +150,10 @@ function RequestCard({ request, theme: t }) {
                       {new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
-                  <p style={{ fontSize: '13px', color: t.mutedTextColor, margin: 0, lineHeight: '1.5' }}>
-                    {note.content}
-                  </p>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: note.content }}
+                    style={{ fontSize: '13px', color: t.mutedTextColor, lineHeight: '1.5' }}
+                  />
                 </div>
               ))}
             </div>

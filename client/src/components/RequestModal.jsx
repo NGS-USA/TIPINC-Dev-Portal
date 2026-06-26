@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { assignRequest, getDevelopers, unassignRequest } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import RichTextEditor from './RichTextEditor'
+import { uploadAttachment } from '../utils/supabase'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -31,6 +33,8 @@ export default function RequestModal({ request, onClose, onUpdate }) {
   const [newNote, setNewNote] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
   const [addingNote, setAddingNote] = useState(false)
+  const [noteFiles, setNoteFiles] = useState([])
+  const [noteFileError, setNoteFileError] = useState(null)
 
   useEffect(() => {
     fetchDevelopers()
@@ -81,9 +85,16 @@ export default function RequestModal({ request, onClose, onUpdate }) {
   }
 
   async function handleAddNote() {
-    if (!newNote.trim()) return
+    if (!newNote.trim() && noteFiles.length === 0) return
     try {
       setAddingNote(true)
+
+      const attachments = []
+      for (const file of noteFiles) {
+        const uploaded = await uploadAttachment(file, `notes/${request.id}`)
+        attachments.push(uploaded)
+      }
+
       const res = await fetch(`${API}/api/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,12 +103,14 @@ export default function RequestModal({ request, onClose, onUpdate }) {
           author_id: user?.id || null,
           author_name: user?.name || user?.email || 'Developer',
           content: newNote,
-          is_private: isPrivate
+          is_private: isPrivate,
+          attachments
         })
       })
       const note = await res.json()
       setNotes(prev => [...prev, note])
       setNewNote('')
+      setNoteFiles([])
     } catch (err) {
       console.error('Failed to add note:', err)
     } finally {
@@ -373,7 +386,7 @@ export default function RequestModal({ request, onClose, onUpdate }) {
                   borderRadius: '8px',
                   padding: '10px 12px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>
                         {note.author_name}
@@ -396,35 +409,93 @@ export default function RequestModal({ request, onClose, onUpdate }) {
                       </button>
                     </div>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: '1.5' }}>
-                    {note.content}
-                  </p>
+
+                  {/* Rich text content */}
+                  <div
+                    dangerouslySetInnerHTML={{ __html: note.content }}
+                    className="rich-text"
+                    style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6' }}
+                  />
+
+                  {/* Note attachments */}
+                  {note.attachments && note.attachments.length > 0 && (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {note.attachments.map((file, i) => (
+                        <a
+                          key={i}
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '5px 8px', backgroundColor: '#f9fafb',
+                            border: '1px solid #e5e7eb', borderRadius: '6px',
+                            textDecoration: 'none', fontSize: '12px', color: '#374151'
+                          }}
+                        >
+                          <span>{file.type?.startsWith('image/') ? '🖼️' : '📎'}</span>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                          <span style={{ color: '#6366f1', fontWeight: '600', flexShrink: 0 }}>Open →</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          <textarea
+          {/* Rich Text Editor */}
+          <RichTextEditor
             value={newNote}
-            onChange={e => setNewNote(e.target.value)}
-            placeholder="Add a note..."
-            rows={2}
-            style={{
-              width: '100%',
-              padding: '8px 10px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '13px',
-              color: '#111827',
-              resize: 'none',
-              outline: 'none',
-              boxSizing: 'border-box',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              marginBottom: '8px'
-            }}
+            onChange={setNewNote}
+            placeholder="Add a note... (supports bold, italic, lists, links)"
           />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+          {/* Note file attachments */}
+          <div style={{ marginTop: '8px' }}>
+            {noteFiles.length > 0 && (
+              <div style={{ marginBottom: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {noteFiles.map((file, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '5px 8px', backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb', borderRadius: '6px'
+                  }}>
+                    <span style={{ fontSize: '12px', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      📎 {file.name}
+                    </span>
+                    <button
+                      onClick={() => setNoteFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '14px', marginLeft: '8px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              fontSize: '12px', color: '#6b7280', cursor: 'pointer', padding: '4px 0'
+            }}>
+              <span>📎 Attach files</span>
+              <input
+                type="file"
+                multiple
+                onChange={e => {
+                  const selected = Array.from(e.target.files)
+                  setNoteFiles(prev => [...prev, ...selected].slice(0, 5))
+                  e.target.value = ''
+                }}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+              />
+            </label>
+            {noteFileError && <p style={{ fontSize: '11px', color: '#ef4444', margin: '4px 0 0' }}>{noteFileError}</p>}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -435,7 +506,7 @@ export default function RequestModal({ request, onClose, onUpdate }) {
             </label>
             <button
               onClick={handleAddNote}
-              disabled={addingNote || !newNote.trim()}
+              disabled={addingNote || (!newNote.trim() && noteFiles.length === 0)}
               style={{
                 padding: '6px 14px',
                 backgroundColor: '#6366f1',
@@ -444,12 +515,12 @@ export default function RequestModal({ request, onClose, onUpdate }) {
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: '600',
-                cursor: addingNote || !newNote.trim() ? 'default' : 'pointer',
-                opacity: addingNote || !newNote.trim() ? 0.6 : 1,
+                cursor: addingNote || (!newNote.trim() && noteFiles.length === 0) ? 'default' : 'pointer',
+                opacity: addingNote || (!newNote.trim() && noteFiles.length === 0) ? 0.6 : 1,
                 fontFamily: 'Inter, system-ui, sans-serif'
               }}
             >
-              Add note
+              {addingNote ? 'Saving...' : 'Add note'}
             </button>
           </div>
         </div>
