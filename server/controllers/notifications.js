@@ -1,3 +1,4 @@
+import { sendNotificationEmail } from '../utils/email.js'
 import pool from '../utils/db.js'
 
 // Get notifications for a user
@@ -54,6 +55,17 @@ export async function createNotification(userId, type, title, message, requestId
        VALUES ($1, $2, $3, $4, $5)`,
       [userId, type, title, message, requestId]
     )
+
+    // Look up the user's email to send notification email
+    const userResult = await pool.query(
+      `SELECT email, name FROM portal_users WHERE id = $1 AND is_active = true`,
+      [userId]
+    )
+
+    if (userResult.rows.length > 0) {
+      const { email, name } = userResult.rows[0]
+      await sendNotificationEmail({ to: email, name, title, message, type })
+    }
   } catch (err) {
     console.error('Failed to create notification:', err.message)
   }

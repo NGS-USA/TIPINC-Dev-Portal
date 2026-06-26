@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import speakeasy from 'speakeasy'
 import qrcode from 'qrcode'
 import crypto from 'crypto'
+import { sendInviteEmail } from '../utils/email.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tipinc-dev-portal-secret'
 const SESSION_HOURS = 8
@@ -298,6 +299,14 @@ export async function inviteUser(req, res) {
        VALUES ($1, $2, $3, $4, $5)`,
       [req.portalUser?.id || 'system', 'USER_INVITED', 'portal_user', result.rows[0].id, JSON.stringify({ email, role })]
     )
+
+    // Send invite email
+    await sendInviteEmail({
+      to: email.toLowerCase(),
+      name,
+      tempPassword,
+      role: role || 'Developer'
+    })
 
     res.status(201).json({
       user: sanitizeUser(result.rows[0]),
