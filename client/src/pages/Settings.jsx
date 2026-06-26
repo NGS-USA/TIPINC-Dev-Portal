@@ -189,12 +189,12 @@ function UserManagement({ authHeader, apps }) {
   }
 
   async function handleDeactivate(userId) {
-    if (!window.confirm('Deactivate this user? They will no longer be able to log in.')) return
+    if (!window.confirm('Permanently delete this user? This cannot be undone.')) return
     try {
       await fetch(`${API}/api/auth/users/${userId}/deactivate`, { method: 'PATCH', headers: authHeader })
       fetchUsers()
     } catch (err) {
-      console.error('Failed to deactivate:', err)
+      console.error('Failed to delete user:', err)
     }
   }
 
@@ -274,7 +274,7 @@ function UserManagement({ authHeader, apps }) {
                       onClick={() => handleDeactivate(u.id)}
                       style={{ ...BTN_DANGER, fontSize: '11px', padding: '4px 8px' }}
                     >
-                      Deactivate
+                      Delete
                     </button>
                   )}
                 </div>

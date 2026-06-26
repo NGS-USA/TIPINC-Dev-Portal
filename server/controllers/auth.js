@@ -384,20 +384,21 @@ export async function resetUserMfa(req, res) {
 export async function deactivateUser(req, res) {
   try {
     const { userId } = req.params
-    await pool.query(
-      'UPDATE portal_users SET is_active = false WHERE id = $1',
-      [userId]
-    )
+
+    await pool.query('DELETE FROM portal_users WHERE id = $1', [userId])
+    await pool.query('DELETE FROM portal_sessions WHERE user_id = $1', [userId])
+    await pool.query('DELETE FROM dev_roles WHERE user_id = $1', [userId])
+    await pool.query('DELETE FROM app_assignments WHERE user_id = $1', [userId])
 
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
        VALUES ($1, $2, $3, $4, $5)`,
-      [req.portalUser?.id || 'system', 'USER_DEACTIVATED', 'portal_user', userId, JSON.stringify({})]
+      [req.portalUser?.id || 'system', 'USER_DELETED', 'portal_user', userId, JSON.stringify({})]
     )
 
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: 'Failed to deactivate user', detail: err.message })
+    res.status(500).json({ error: 'Failed to delete user', detail: err.message })
   }
 }
 
