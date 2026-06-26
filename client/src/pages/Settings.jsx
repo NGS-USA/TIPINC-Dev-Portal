@@ -69,7 +69,8 @@ const BTN_SECONDARY = {
   fontFamily: 'Inter, system-ui, sans-serif'
 }
 
-function UserManagement({ authHeader, apps }) {
+function UserManagement({ portalToken, apps }) {
+  const authHeader = portalToken ? { 'Authorization': `Bearer ${portalToken}` } : {}
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'Developer', app_ids: [] })
@@ -487,7 +488,7 @@ export default function Settings() {
         <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
           Invite developers, manage app access, reset passwords and MFA.
         </p>
-        <UserManagement authHeader={AUTH_HEADER} apps={apps} />
+        <UserManagement portalToken={portalToken} apps={apps} />
       </div>
     </div>
   )
