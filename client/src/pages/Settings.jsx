@@ -69,7 +69,8 @@ const BTN_SECONDARY = {
   fontFamily: 'Inter, system-ui, sans-serif'
 }
 
-function UserManagement({ authHeader, apps }) {
+function UserManagement({ portalToken, apps }) {
+  const authHeader = portalToken ? { 'Authorization': `Bearer ${portalToken}` } : {}
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'Developer', app_ids: [] })
@@ -189,12 +190,12 @@ function UserManagement({ authHeader, apps }) {
   }
 
   async function handleDeactivate(userId) {
-    if (!window.confirm('Deactivate this user? They will no longer be able to log in.')) return
+    if (!window.confirm('Permanently delete this user? This cannot be undone.')) return
     try {
       await fetch(`${API}/api/auth/users/${userId}/deactivate`, { method: 'PATCH', headers: authHeader })
       fetchUsers()
     } catch (err) {
-      console.error('Failed to deactivate:', err)
+      console.error('Failed to delete user:', err)
     }
   }
 
@@ -274,7 +275,7 @@ function UserManagement({ authHeader, apps }) {
                       onClick={() => handleDeactivate(u.id)}
                       style={{ ...BTN_DANGER, fontSize: '11px', padding: '4px 8px' }}
                     >
-                      Deactivate
+                      Delete
                     </button>
                   )}
                 </div>
@@ -487,7 +488,7 @@ export default function Settings() {
         <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>
           Invite developers, manage app access, reset passwords and MFA.
         </p>
-        <UserManagement authHeader={AUTH_HEADER} apps={apps} />
+        <UserManagement portalToken={portalToken} apps={apps} />
       </div>
     </div>
   )

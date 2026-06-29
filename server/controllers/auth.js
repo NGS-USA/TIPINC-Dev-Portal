@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import speakeasy from 'speakeasy'
 import qrcode from 'qrcode'
 import crypto from 'crypto'
+import { sendInviteEmail } from '../utils/email.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tipinc-dev-portal-secret'
 const SESSION_HOURS = 8
@@ -299,6 +300,14 @@ export async function inviteUser(req, res) {
       [req.portalUser?.id || 'system', 'USER_INVITED', 'portal_user', result.rows[0].id, JSON.stringify({ email, role })]
     )
 
+    // Send invite email
+    await sendInviteEmail({
+      to: email.toLowerCase(),
+      name,
+      tempPassword,
+      role: role || 'Developer'
+    })
+
     res.status(201).json({
       user: sanitizeUser(result.rows[0]),
       tempPassword
@@ -375,20 +384,21 @@ export async function resetUserMfa(req, res) {
 export async function deactivateUser(req, res) {
   try {
     const { userId } = req.params
-    await pool.query(
-      'UPDATE portal_users SET is_active = false WHERE id = $1',
-      [userId]
-    )
+
+    await pool.query('DELETE FROM portal_users WHERE id = $1', [userId])
+    await pool.query('DELETE FROM portal_sessions WHERE user_id = $1', [userId])
+    await pool.query('DELETE FROM dev_roles WHERE user_id = $1', [userId])
+    await pool.query('DELETE FROM app_assignments WHERE user_id = $1', [userId])
 
     await pool.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, metadata)
        VALUES ($1, $2, $3, $4, $5)`,
-      [req.portalUser?.id || 'system', 'USER_DEACTIVATED', 'portal_user', userId, JSON.stringify({})]
+      [req.portalUser?.id || 'system', 'USER_DELETED', 'portal_user', userId, JSON.stringify({})]
     )
 
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: 'Failed to deactivate user', detail: err.message })
+    res.status(500).json({ error: 'Failed to delete user', detail: err.message })
   }
 }
 
